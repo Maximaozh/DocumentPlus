@@ -1,0 +1,95 @@
+﻿@page "/DocDetails/{id:int}"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+
+@inject IHttpClientFactory httpFactory
+@inject ILocalStorageService localStorage
+@inject NavigationManager NavManager
+
+
+@attribute [Authorize]
+
+@if (isLoading)
+{
+    <p>Loading...</p>
+}
+else if (document != null)
+{
+    <MudButton StartIcon="@Icons.Material.Filled.Info" Color="Color.Inherit" OnClick="@((e) => DrawerToggle())">Информация</MudButton>
+    <MudPaper Style="overflow:hidden; position:relative;">
+        <MudDrawerContainer>
+            <MudDrawer @bind-Open="_open" Elevation="2" Variant="@DrawerVariant.Persistent" Class="pa-2">
+                <MudCard Class="mud-height-full">
+                    <MudCardContent>
+                        <MudForm ReadOnly="ReadOnly">
+                            <MudTextField @bind-Value="@document.Name" T="string" Label="Заголовок" />
+                            <MudTextField @bind-Value="@DocAuthor" T="string" Label="Автор" />
+                            <MudDatePicker @bind-Date="@CreatedDateDoc" Label="Дата создания" />
+                            <MudDatePicker @bind-Date="@ExpireDateDoc" Label="Действителен до" />
+                            <MudTextField @bind-Value="@document.Path" T="string" Label="Путь" />
+                        </MudForm>
+                    </MudCardContent>
+                </MudCard>
+            </MudDrawer>
+            <div class="d-flex justify-center align-center">
+                <MudTextField @bind-Value="@document.Description" ReadOnly="ReadOnly" @ref="multilineReference" T="string" Label="Содержание документа" Lines="25"
+                              Variant="Variant.Outlined" Text="@document.Description" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Api"
+                              OnAdornmentClick="@(() => multilineReference.SelectAsync())" />
+            </div>
+        </MudDrawerContainer>
+    </MudPaper>
+}
+
+else
+{
+    <p>Такой документ не существует</p>
+}
+@code {
+
+    [Parameter]
+    public int id { get; set; }
+
+    private bool _open = true;
+    bool ReadOnly = true;
+    private MudTextField<string>? multilineReference;
+    private DocInfoGetId? document;
+    private string? DocAuthor;
+    private bool isLoading = true;
+
+    public DateTime? CreatedDateDoc { get; set; } 
+    public DateTime? ExpireDateDoc { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var Role = await localStorage.GetItemAsync<string>("UserInfo:Role");
+            var httpClient = httpFactory.CreateClient("Aozh8");
+
+            if (Role == "Администратор")
+            {
+                document = await httpClient.GetFromJsonAsync<DocInfoGetId>($"api/documents/{id}");
+            }
+            else
+            {
+                document = await httpClient.GetFromJsonAsync<DocInfoGetId>($"api/user/documents/{id}");
+            }
+
+            DocAuthor = document.AuthorName + " " + document.AuthorSurname;
+            CreatedDateDoc = document.CreatedDate;
+            ExpireDateDoc = document.ExpireDate;
+            isLoading = false;
+        }
+        catch
+        {
+            NavManager.NavigateTo("/NotFound");
+        }
+    }
+    private void DrawerToggle()
+    {
+        _open = !_open;
+    }
+}
+
+
+

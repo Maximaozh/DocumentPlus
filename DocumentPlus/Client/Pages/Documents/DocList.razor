@@ -1,0 +1,125 @@
+﻿@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+
+@page "/DocWork"
+
+@inject IHttpClientFactory httpFactory
+@inject ILocalStorageService localStorage
+@inject NavigationManager NavManager
+@inject IJSRuntime JS
+
+<PageTitle>Главная страница</PageTitle>
+
+@attribute [Authorize(Roles = "Администратор")]
+
+<MudStack Row>
+    <MudPaper Style="padding: 15px;">
+        <MudStack Row>
+            <MudText Class="pa-2">Сортировка</MudText>
+            <MudButtonGroup Color="Color.Primary" Size="Size.Small" Variant="Variant.Outlined">
+                <MudButton>Название</MudButton>
+                <MudButton>Дата создания</MudButton>
+                <MudButton>Дата окончания</MudButton>
+            </MudButtonGroup>
+        </MudStack>
+
+        <MudTextField @bind-Value="_immediateText"
+                      HelperText="@_immediateText" Label="Поиск" Variant="Variant.Outlined"
+                      Adornment="Adornment.None" AdornmentIcon="@Icons.Material.Filled.Search" />
+
+        <MudStack Row Style="flex-wrap:wrap">
+
+            @if (documents != null)
+            {
+                @foreach (var item in documents)
+                {
+                    <MudBreakpointProvider>
+                        <MudHidden Breakpoint="Breakpoint.SmAndUp" Invert="true">
+                            <MudCard Class="pa-5">
+                                <MudCardContent>
+                                    <MudText>@item.Name</MudText>
+                                     <MudText>@item.UserId</MudText>
+
+                                    @if (@item.ExpireDate.Subtract(DateTime.Now).TotalDays > 0)
+                                    {
+                                        @if (@item.ExpireDate.Subtract(DateTime.Now).TotalDays < 1)
+                                        {
+                                            <MudText Typo="Typo.body2">Срок действия: @item.ExpireDate.Subtract(DateTime.Now).Hours часов</MudText>
+                                        }
+                                        else
+                                        {
+                                            <MudText Typo="Typo.body2">Срок действия: @item.ExpireDate.Subtract(DateTime.Now).Days дней</MudText>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.body2">Срок действия истек</MudText>
+                                    }
+                                </MudCardContent>
+                                <MudCardActions>
+                                    <MudButton Variant="Variant.Text" Color="Color.Primary" @onclick="() => RedirectToViewDoc(item.Id)">Подробнее</MudButton>
+                                    <MudButton Variant="Variant.Text" Color="Color.Primary" @onclick="() => RedirectToEditDoc(item.Id)">Редактировать</MudButton>
+                                    <MudButton Variant="Variant.Text" Color="Color.Error" @onclick="() => DeleteDocument(item.Id)">Удалить</MudButton>
+                                </MudCardActions>
+                            </MudCard>
+                        </MudHidden>
+                    </MudBreakpointProvider>
+                }
+            }
+            else
+            {
+                <p>Loading...</p>
+            }
+        </MudStack>
+    </MudPaper>
+    <MudPaper Class="mb-8 pa-2">
+        @if (folders != null)
+        {
+            <DocTree FolderTree="folders" />
+        }
+       
+    </MudPaper>
+</MudStack>
+ @if (isDeleting)
+    {
+        <MudProgressLinear />
+    }
+
+@code
+{
+    int activeIndex = 2;
+    string _immediateText = "";
+    private bool isDeleting = false;
+
+    private List<DocInfoGet>? documents = new List<DocInfoGet>();
+    private List<Folder>? folders = new List<Folder>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var httpClient = httpFactory.CreateClient("Aozh8");
+        documents = await httpClient.GetFromJsonAsync<List<DocInfoGet>>("api/DocWork");
+        folders = await httpClient.GetFromJsonAsync<List<Folder>>("api/documents/tree");
+    }
+    public void RedirectToViewDoc(int id)
+    {
+        NavManager.NavigateTo($"/DocDetails/{id}");
+    }
+    public void RedirectToEditDoc(int id)
+    {
+        NavManager.NavigateTo($"/DocEdit/{id}");
+    }
+    private async Task DeleteDocument(int id)
+    {
+        var confirm = await JS.InvokeAsync<bool>("confirm", "Вы хотите удалить этот документ?");
+        if (confirm)
+        {
+            isDeleting = true;
+            var httpClient = httpFactory.CreateClient("Aozh8");
+            await httpClient.DeleteAsync($"api/document/{id}");
+            StateHasChanged();
+            documents = await httpClient.GetFromJsonAsync<List<DocInfoGet>>("api/DocWork");
+            folders = await httpClient.GetFromJsonAsync<List<Folder>>("api/documents/tree");
+            isDeleting = false;
+        }
+    }
+}

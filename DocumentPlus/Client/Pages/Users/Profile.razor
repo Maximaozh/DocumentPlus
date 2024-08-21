@@ -1,0 +1,48 @@
+﻿@page "/profile"
+@using DocumentPlus.Client.Data
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@inject CustomLocalStorage localStorage
+
+@inject IHttpClientFactory httpFactory
+@inject NavigationManager navigationManager
+@inject AuthenticationStateProvider stateProvider
+
+
+<MudStack>
+    <MudPaper Class="pa-3">
+        <MudText Typo="Typo.h5">Добро пожаловать, @userInfo.Login </MudText>
+    </MudPaper>
+    <MudPaper Class="pa-3">
+        <MudPaper Width="300px">
+            <MudList T="string">
+                <MudListItem @bind-Text="userInfo.Id" Icon="@Icons.Material.Filled.Inbox" />
+                <MudListItem @bind-Text="userInfo.Role" Icon="@Icons.Material.Filled.Inbox" />
+                <MudListItem @bind-Text="userInfo.Name" Icon="@Icons.Material.Filled.Inbox" />
+                <MudListItem @bind-Text="userInfo.Surname" Icon="@Icons.Material.Filled.Inbox" />
+            </MudList>
+        </MudPaper>
+    </MudPaper>
+    <MudPaper Class="pa-3">
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" @onclick="Logout">Выйти из аккаунта</MudButton>
+    </MudPaper>
+</MudStack>
+
+@code {
+    UserInfo userInfo = new UserInfo() { Id = "---",Login = "---",Role = "---" };
+
+    protected override async void OnInitialized()
+    {
+        userInfo = await localStorage.GetValueAsync<UserInfo>();
+        StateHasChanged();
+    }
+
+    public async Task Logout()
+    {
+        await localStorage.ClearAsync();
+        (stateProvider as CustomAuthenticationStateProivder).NotifyStateChange();
+        navigationManager.NavigateTo("/");
+        
+    }
+
+}

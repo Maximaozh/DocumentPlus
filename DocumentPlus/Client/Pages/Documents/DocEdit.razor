@@ -1,0 +1,181 @@
+﻿@page "/DocEdit/{id:int}"
+@using DocumentPlus.Client.Data
+@using DocumentPlus.Shared.Dto.Docs
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+
+@inject IHttpClientFactory httpFactory
+@inject CustomLocalStorage localStorage
+@inject NavigationManager NavManager
+
+@attribute [Authorize]
+
+@if (isLoading)
+{
+    <p>Loading...</p>
+}
+
+else if (document != null)
+{
+    <DocForm docPage="docParam" OnSaveClick="UpdateDocument"/>
+}
+
+else
+{
+    <p>Такой документ не существует</p>
+}
+@code {
+
+    [Parameter]
+    public int id { get; set; }
+    private DocInfoGetId? document;
+    private bool isLoading = true;
+    DocPageParameter docParam;
+    string? Role;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            Role = await localStorage.GetValueAsync<string>("UserInfo:Role"); var httpClient = httpFactory.CreateClient("Aozh8");
+
+            if (Role == "Администратор")
+            {
+                document = await httpClient.GetFromJsonAsync<DocInfoGetId>($"api/documents/{id}");
+            }
+            else
+            {
+                document = await httpClient.GetFromJsonAsync<DocInfoGetId>($"api/user/documents/{id}");
+            }
+
+            docParam = new DocPageParameter()
+                {
+                    NameDoc = document.Name,
+                    AuthorDoc = document.AuthorName + " " + document.AuthorSurname,
+                    DescriptionDoc = document.Description,
+                    CreatedDateDoc = document.CreatedDate,
+                    ExpireDateDoc = document.ExpireDate,
+                    PathDoc = document.Path,
+                    ReadOnlyText = false,
+                    ReadOnlyForm = false,
+                };
+
+            isLoading = false;
+        }
+        catch
+        {
+            NavManager.NavigateTo("/NotFound");
+        }
+    }
+
+    private async Task UpdateDocument()
+    {
+        document.Name = docParam.NameDoc;
+        document.Path = docParam.PathDoc;
+        document.Description = docParam.DescriptionDoc;
+        document.ExpireDate = DateTime.SpecifyKind((DateTime)docParam.ExpireDateDoc, DateTimeKind.Utc);
+
+        var httpClient = httpFactory.CreateClient("Aozh8");
+        var response = await httpClient.PutAsJsonAsync("/api/documents", document);
+
+        if (response.IsSuccessStatusCode)
+        {
+            if (Role == "Администратор")
+            {
+                NavManager.NavigateTo("/DocWork");
+            }
+            else
+            {
+                NavManager.NavigateTo("/DocList");
+            }
+           
+        }
+    }
+}
+
+@* @if (isLoading)
+{
+    <p>Loading...</p>
+}
+else if (document != null)
+{
+    <MudButton StartIcon="@Icons.Material.Filled.Info" Color="Color.Inherit" OnClick="@((e) => DrawerToggle())">Информация</MudButton>
+    <MudPaper Style="overflow:hidden; position:relative;">
+        <MudDrawerContainer>
+            <MudDrawer @bind-Open="_open" Elevation="2" Variant="@DrawerVariant.Persistent" Class="pa-2">
+                <MudCard Class="mud-height-full">
+                    <MudCardContent>
+                        <MudForm ReadOnly="ReadOnly">
+                            <MudTextField @bind-Value="@document.Name" T="string" Label="Заголовок" />
+                            <MudTextField @bind-Value="@DocAuthor" ReadOnly="true" T="string" Label="Автор" />
+                            <MudDatePicker @bind-Date="@CreatedDateDoc" ReadOnly="true" Label="Дата создания" />
+                            <MudDatePicker @bind-Date="@ExpireDateDoc" IsDateDisabledFunc="@((DateTime dt)=>(dt < dateMinExpire))" Label="Действителен до" />
+                            <MudTextField @bind-Value="@document.Path" T="string" Label="Путь" />
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" @onclick="UpdateDocument">Сохранить</MudButton>
+                        </MudForm>
+                    </MudCardContent>
+                </MudCard>
+            </MudDrawer>
+            <div class="d-flex justify-center align-center">
+                <MudTextField @bind-Value="@document.Description" ReadOnly="ReadOnly" @ref="multilineReference" T="string" Label="Содержание документа" Lines="25"
+                              Variant="Variant.Outlined" Text="@document.Description" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Api"
+                              OnAdornmentClick="@(() => multilineReference.SelectAsync())" />
+            </div>
+        </MudDrawerContainer>
+    </MudPaper>
+}
+
+else
+{
+    <p>Такой документ не существует</p>
+}
+@code {
+
+    [Parameter]
+    public int id { get; set; }
+
+    private bool _open = true;
+    bool ReadOnly = false;
+    private MudTextField<string>? multilineReference;
+    private DocInfoGetId? document;
+    private string? DocAuthor;
+    private bool isLoading = true;
+    private DateTime dateMinExpire = DateTime.Today.AddDays(1);
+
+    public DateTime? CreatedDateDoc { get; set; }
+    public DateTime? ExpireDateDoc { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var httpClient = httpFactory.CreateClient("Aozh8");
+            document = await httpClient.GetFromJsonAsync<DocInfoGetId>($"api/documents/{id}");
+            DocAuthor = document.AuthorName + " " + document.AuthorSurname;
+            CreatedDateDoc = document.CreatedDate;
+            ExpireDateDoc = document.ExpireDate;
+            isLoading = false;
+        }
+        catch
+        {
+            NavManager.NavigateTo("/NotFound");
+        }
+    }
+    private void DrawerToggle()
+    {
+        _open = !_open;
+    }
+    private async Task UpdateDocument()
+    {
+        document.ExpireDate = DateTime.SpecifyKind((DateTime)ExpireDateDoc, DateTimeKind.Utc);
+        var httpClient = httpFactory.CreateClient("Aozh8");
+        var response = await httpClient.PutAsJsonAsync("/api/documents", document);
+        if (response.IsSuccessStatusCode)
+        {
+            NavManager.NavigateTo("/DocWork");
+        }
+    }
+} *@
+
+
+

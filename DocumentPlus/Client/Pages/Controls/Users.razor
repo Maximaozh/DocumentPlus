@@ -1,0 +1,262 @@
+﻿@using DocumentPlus.Shared.Dto.Users.Controls
+@using System.Net.Http.Json
+@using System.Threading
+@using DocumentPlus.Shared.Dto.Groups
+@inject IHttpClientFactory httpFactory
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudTable MultiSelection="true" ServerData="UserReload" T="UserInfo" SelectedItemsChanged="OnSelectedUsersChanged" Dense="true" Hover="true" @ref="usersTable">
+    <ToolBarContent>
+        <MudButtonGroup Color="Color.Primary" Size="Size.Large" Variant="Variant.Outlined">
+            <MudButton OnClick="OnUserAddClick">Добавить</MudButton>
+            <MudButton OnClick="OnUserEditClick">Редактировать</MudButton>
+            <MudButton OnClick="OnUserDeleteClick">Удалить</MudButton>
+        </MudButtonGroup>
+        <MudSpacer />
+        <MudTextField T="string" ValueChanged="@(s=>OnSearch(s))"  Placeholder="Поиск" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh><MudTableSortLabel SortLabel="Id" T="UserInfo">№</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortLabel="Login" T="UserInfo">Логин</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortLabel="Role" T="UserInfo">Роль</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortLabel="Name" T="UserInfo">Имя</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortLabel="Surname" T="UserInfo">Фамилия</MudTableSortLabel></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Id">@context.Id</MudTd>
+        <MudTd DataLabel="Login">@context.Login</MudTd>
+        <MudTd DataLabel="Role">@context.Role</MudTd>
+        <MudTd DataLabel="Name">@context.Name</MudTd>
+        <MudTd DataLabel="Surname">@context.Surname</MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>Пользователи не были найдены</MudText>
+    </NoRecordsContent>
+    <LoadingContent>
+        <MudText>Загрузка информации</MudText>
+    </LoadingContent>
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+</MudTable>
+
+<MudGrid Spacing="12" Justify="Justify.Center" >
+    <MudItem xs="1" Color="Color.Primary" Size="Size.Medium" Variant="Variant.Outlined">
+        <MudButtonGroup Vertical="true">
+            <MudButton>Исключить</MudButton>
+            <MudButton>Добавить</MudButton>
+            <MudButton>Создать</MudButton>
+        </MudButtonGroup>
+    </MudItem>
+    <MudItem xs="11">
+        <MudTable MultiSelection="true" Dense="true" ServerData="GroupReload" T="GroupInfo" SelectedItemsChanged="OnSelectedGroupsChanged" Hover="true" @ref="groupsTable">
+            <HeaderContent>
+                <MudTh><MudTableSortLabel SortLabel="Id" T="GroupInfo">Id</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortLabel="Name" T="GroupInfo">Название</MudTableSortLabel></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Id">@context.Id</MudTd>
+                <MudTd DataLabel="Name">@context.Name</MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText>Пользователи не были найдены</MudText>
+            </NoRecordsContent>
+            <LoadingContent>
+                <MudText>Загрузка информации</MudText>
+            </LoadingContent>
+            <PagerContent>
+                <MudTablePager />
+            </PagerContent>
+        </MudTable>
+    </MudItem>
+    
+</MudGrid>
+
+@code {
+    //private IEnumerable<UserInfo> usersPagedData;
+    private MudTable<UserInfo> usersTable;
+    private MudTable<GroupInfo> groupsTable;
+
+    private HashSet<UserInfo> selectedUsers = new HashSet<UserInfo>();
+    private HashSet<GroupInfo> selectedGroups = new HashSet<GroupInfo>();
+
+    private int totalItems;
+    private string searchString = null;
+
+    private async Task<TableData<UserInfo>> UserReload(TableState state, CancellationToken token)
+    {
+        var httpClient = httpFactory.CreateClient("Aozh8");
+
+        var settings = new UsersTableRequest()
+            {
+                Page = state.Page,
+                PageSize = state.PageSize,
+                Search = searchString,
+                Order = state.SortLabel,
+                SortDirection = state.SortDirection == SortDirection.Ascending ? 1 : state.SortDirection == SortDirection.Descending ? 2 : 0,
+            };
+
+        var responseMessage = await httpClient.PostAsJsonAsync("api/user/getUsers", settings, token);
+        var data = await responseMessage.Content.ReadFromJsonAsync<UsersTableResponse>();
+
+        return new TableData<UserInfo>() { TotalItems = data.TotalCount, Items = data.Users };
+    }
+    private  async Task<TableData<GroupInfo>> GroupReload(TableState state, CancellationToken token)
+    {
+        var httpClient = httpFactory.CreateClient("Aozh8");
+
+        var settings = new GroupsByUsersRequest()
+            {
+                Users = selectedUsers.ToList(),
+                Page = state.Page,
+                PageSize = state.PageSize
+            };
+
+        var responseMessage = await httpClient.PostAsJsonAsync("api/user/getGroupsByUsers", settings, token);
+        var data = await responseMessage.Content.ReadFromJsonAsync<GroupsByUsersResponse>();
+
+        return new TableData<GroupInfo>() { TotalItems = data.TotalCount, Items = data.Groups };
+    }
+
+    private void OnSearch(string text)
+    {
+        searchString = text;
+        usersTable.ReloadServerData();
+    }
+
+    private void OnSelectedUsersChanged(HashSet<UserInfo> users)
+    {
+        selectedUsers = users;
+        groupsTable.ReloadServerData();
+    }
+    private void OnSelectedGroupsChanged(HashSet<GroupInfo> groups)
+    {
+        selectedGroups = groups;
+    }
+
+
+    // Кнопки управления группами
+    private async Task OnGroupAddClick()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true };
+        await DialogService.ShowAsync<RegistrateUser>("Registrate", options);
+        usersTable.ReloadServerData();
+    }
+    private async Task OnGroupEditClick()
+    {
+        if (selectedUsers.Count != 1)
+        {
+            Snackbar.Add($"Необходимо выбрать одного пользователя", Severity.Error);
+            return;
+        }
+        else
+        {
+            var user = selectedUsers.First();
+            var userData = new UserEdit()
+                {
+                    OldLogin = user.Login,
+                    Login = user.Login,
+                    Password = "New password",
+                    Role = user.Role,
+                    Name = user.Name,
+                    Surname = user.Surname
+                };
+
+            var options = new DialogOptions { CloseOnEscapeKey = true };
+
+            var parameters = new DialogParameters()
+                {
+                    ["IsAdmin"] = user.Role == "Администратор" ? true : false,
+                    ["IsNew"] = false,
+                    ["User"] = userData
+                };
+
+            await DialogService.ShowAsync<RegistrateUser>("Registrate", parameters, options);
+            usersTable.ReloadServerData();
+        }
+    }
+    private async Task OnGroupDeleteClick()
+    {
+        if (selectedUsers.Count != 1)
+        {
+            Snackbar.Add($"Необходимо выбрать одного пользователя", Severity.Error);
+            return;
+        }
+        else
+        {
+            var user = selectedUsers.First();
+
+            var options = new DialogOptions { CloseOnEscapeKey = true };
+
+            var httpClient = httpFactory.CreateClient("Aozh8");
+            var responseMessage = await httpClient.PostAsJsonAsync("api/user/delete", user);
+            selectedUsers.Clear();
+            usersTable.ReloadServerData();
+            return;
+        }
+    }
+
+
+    // Кнопки управление пользователем
+    private async Task OnUserAddClick()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true };
+        await DialogService.ShowAsync<RegistrateUser>("Добавление", options);
+        await usersTable.ReloadServerData();
+    }
+    private async Task OnUserEditClick()
+    {
+        if(selectedUsers.Count != 1)
+        {
+            Snackbar.Add($"Необходимо выбрать одного пользователя", Severity.Error);
+            return;
+        }
+        else
+        {
+            var user = selectedUsers.First();
+            var userData = new UserEdit()
+                {
+                    OldLogin = user.Login,
+                    Login = user.Login,
+                    Password = "New password",
+                    Role = user.Role,
+                    Name = user.Name,
+                    Surname = user.Surname
+                };
+
+            var options = new DialogOptions { CloseOnEscapeKey = true };
+
+            var parameters = new DialogParameters()
+                {
+                    ["IsAdmin"] = user.Role == "Администратор" ? true : false,
+                    ["IsNew"] = false,
+                    ["User"] = userData
+                };
+
+            await DialogService.ShowAsync<RegistrateUser>("Изменение", parameters, options);
+            usersTable.ReloadServerData();
+        }
+    }
+    private async Task OnUserDeleteClick()
+    {
+        if (selectedUsers.Count != 1)
+        {
+            Snackbar.Add($"Необходимо выбрать одного пользователя", Severity.Error);
+            return;
+        }
+        else
+        {
+            var user = selectedUsers.First();
+
+            var options = new DialogOptions { CloseOnEscapeKey = true };
+
+            var httpClient = httpFactory.CreateClient("Aozh8");
+            var responseMessage = await httpClient.PostAsJsonAsync("api/user/delete", user);
+            selectedUsers.Clear();
+            usersTable.ReloadServerData();
+            return;
+        }
+    }
+}

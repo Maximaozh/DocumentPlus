@@ -1,0 +1,48 @@
+﻿
+@if (docPage != null)
+{
+    <MudButton StartIcon="@Icons.Material.Filled.Info" Color="Color.Inherit" OnClick="@((e) => DrawerToggle())">Информация</MudButton>
+    <MudPaper Style="overflow:hidden; position:relative;">
+        <MudDrawerContainer>
+            <MudDrawer @bind-Open="_open" Elevation="2" Variant="@DrawerVariant.Persistent" Class="pa-2">
+                <MudCard Class="mud-height-full">
+                    <MudCardContent>
+                        <MudForm ReadOnly="docPage.ReadOnlyForm">
+                            <MudTextField @bind-Value="@docPage.NameDoc" T="string" Label="Заголовок" />
+                            <MudTextField @bind-Value="@docPage.AuthorDoc" ReadOnly="true" T="string" Label="Автор" />
+                            <MudDatePicker @bind-Date="@docPage.CreatedDateDoc" ReadOnly="true" Label="Дата создания" />
+                            <MudDatePicker @bind-Date="@docPage.ExpireDateDoc" IsDateDisabledFunc="@((DateTime dt)=>(dt < dateMinExpire))" Label="Действителен до" />
+                            <MudTextField @bind-Value="@docPage.PathDoc" T="string" Label="Путь" />
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" @onclick="OnSaveClick">Сохранить</MudButton>
+                        </MudForm>
+                    </MudCardContent>
+                </MudCard>
+            </MudDrawer>
+            <div class="d-flex justify-center align-center">
+                <MudTextField @bind-Value="@docPage.DescriptionDoc" ReadOnly="docPage.ReadOnlyText" @ref="multilineReference" T="string" Label="Содержание документа" Lines="25"
+                              Variant="Variant.Outlined" Text="@docPage.DescriptionDoc" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Api"
+                              OnAdornmentClick="@(() => multilineReference.SelectAsync())" />
+            </div>
+        </MudDrawerContainer>
+    </MudPaper>
+}
+
+
+
+
+@code {
+
+    [Parameter]
+    public EventCallback OnSaveClick { get; set; }
+    [Parameter]
+    public DocPageParameter? docPage { get; set; }
+
+    private bool _open = true;
+    private DateTime dateMinExpire = DateTime.Today.AddDays(1);
+    private MudTextField<string> multilineReference;
+
+    private void DrawerToggle()
+    {
+        _open = !_open;
+    }
+}

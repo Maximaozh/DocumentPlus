@@ -1,0 +1,41 @@
+﻿@using DocumentPlus.Shared.Dto.Docs
+@inject NavigationManager NavManager
+
+@foreach (var folder in localFolders)
+{
+    <MudTreeViewItem T="string" Expanded Text="@folder.Name" Icon="@Icons.Material.Filled.Folder">
+         @if (folder.SubFolders.Any())
+        {
+            <DocNode Folders="@folder.SubFolders" />
+        }
+        @if (folder.Documents.Any())
+        {
+            @foreach (var doc in folder.Documents)
+            {
+                <MudTreeViewItem T="string" Text="@doc.Name" @onclick="() => RedirectToViewDoc(doc.Id) " Icon="@Icons.Material.Filled.InsertDriveFile" />
+            }
+        }
+    </MudTreeViewItem>
+}
+
+@code
+{
+    [Parameter]
+    public List<Folder> Folders { get; set; } = new List<Folder>();
+
+    public List<Folder> localFolders { get; set; } = new();
+
+    protected override void OnParametersSet()
+    {
+        // Устанавливаем локальные данные на основе переданных параметров
+        localFolders = Folders;
+    }
+
+    public void RedirectToViewDoc(int id)
+    {
+        NavManager.NavigateTo($"/DocDetails/{id}");
+    }
+
+}
+
+

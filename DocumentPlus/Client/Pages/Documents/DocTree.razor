@@ -1,0 +1,25 @@
+﻿
+<div>
+    <p>Иерархия</p>
+
+    @if (localFolderTree != null)
+    {
+        <MudTreeView T="string" ReadOnly="true" Hover="true" ExpandOnClick="true" ExpandOnDoubleClick="true">
+            <DocNode Folders="@localFolderTree" />
+        </MudTreeView>
+
+    }
+</div>
+
+@code {
+    [Parameter]
+    public List<Folder> FolderTree { get; set; } = new();
+
+    public List<Folder> localFolderTree { get; set; } = new();
+
+    protected override void OnParametersSet()
+    {
+        // Устанавливаем локальные данные на основе переданных параметров
+        localFolderTree = FolderTree;
+    }
+}

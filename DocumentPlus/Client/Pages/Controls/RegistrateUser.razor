@@ -1,0 +1,68 @@
+﻿@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Text.RegularExpressions
+
+@inject IHttpClientFactory httpFactory
+@inject AuthenticationStateProvider StateProvider
+@inject ISnackbar Snackbar
+
+@attribute [Authorize(Roles = "Администратор")]
+
+<MudDialog>
+    <DialogContent>
+        <MudTextField Label="Логин" @bind-Value="User.Login" />
+        <MudTextField InputType="InputType.Password" Label="Пароль" @bind-Value="User.Password" />
+        <MudTextField Label="Имя" @bind-Value="User.Name" />
+        <MudTextField Label="Фамилия" @bind-Value="User.Surname" />
+    </DialogContent>
+    <DialogActions>
+        <MudSwitch @bind-Value="IsAdmin" Label="Админ" Color="Color.Info" />
+        <MudButton OnClick="CloseDialog">Отменить</MudButton>
+        <MudButton OnClick="PushUser">Добавить</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private MudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public UserRegistrate User { get; set; } = new UserRegistrate()
+        {
+            Login = "---",
+            Password = "---",
+            Role = "Пользователь"
+        };
+
+    [Parameter]
+    public bool IsAdmin { get; set; } = false;
+
+    [Parameter]
+    public bool IsNew { get; set; } = true;
+
+    public async Task PushUser()
+    {
+        var httpClient = httpFactory.CreateClient("Aozh8");
+        User.Role = IsAdmin ? "Администратор" : "Пользователь";
+
+        HttpResponseMessage response;
+        if(IsNew)
+            response = await httpClient.PostAsJsonAsync("api/user/registrate", User);
+            else
+            response = await httpClient.PostAsJsonAsync("api/user/edit", (User as UserEdit));
+
+        if (response.IsSuccessStatusCode)
+        {
+            Snackbar.Add($"Успех!", Severity.Success);
+            MudDialog.Close();
+        }
+        else
+            Snackbar.Add($"Ошибка при выполнение операции", Severity.Error);
+        
+    }
+
+    private void CloseDialog()
+    {
+        MudDialog.Close();
+    }
+}

@@ -1,0 +1,144 @@
+﻿@page "/Document"
+@using DocumentPlus.Client.Data
+@using DocumentPlus.Shared.Dto.Docs
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+
+@inject IHttpClientFactory httpFactory
+@inject CustomLocalStorage localStorage
+@inject NavigationManager NavManager
+
+@attribute [Authorize]
+<DocForm docPage="docParam" OnSaveClick="Validate"/>
+
+@code {
+
+    DocPageParameter docParam;
+    int authorId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authorName = await localStorage.GetValueAsync<string>("UserInfo:Name");
+        var authorSurname = await localStorage.GetValueAsync<string>("UserInfo:Surname");
+
+        docParam = new DocPageParameter()
+            {
+                NameDoc = "",
+                AuthorDoc = authorName + " " + authorSurname,
+                ReadOnlyText = false,
+                ReadOnlyForm = false,
+                CreatedDateDoc = DateTime.Now,
+                ExpireDateDoc = null,
+                PathDoc = "root\\"
+            };
+    }
+
+    public async Task Validate()
+    {
+        var ExpireDateDocUtc = DateTime.SpecifyKind((DateTime)docParam.ExpireDateDoc, DateTimeKind.Utc);
+
+        DocInfo docInfo = new DocInfo()
+            {
+                Name = docParam.NameDoc,
+                Path = docParam.PathDoc,
+                Description = docParam.DescriptionDoc,
+                CreatedDate = DateTime.UtcNow,
+                ExpireDate = ExpireDateDocUtc,
+            };
+
+        var httpClient = httpFactory.CreateClient("Aozh8");
+        var response = await httpClient.PostAsJsonAsync("api/Document", docInfo);
+
+        if (response.IsSuccessStatusCode)
+        {
+            var Role = await localStorage.GetValueAsync<string>("UserInfo:Role");
+
+            if (Role == "Администратор")
+            {
+                NavManager.NavigateTo("/DocWork");
+            }
+            else
+            {
+                NavManager.NavigateTo("/DocList");
+            }
+        }
+    }
+}
+
+@* <MudButton StartIcon="@Icons.Material.Filled.Info" Color="Color.Inherit" OnClick="@((e) => DrawerToggle())">Информация</MudButton>
+<MudPaper Style="overflow:hidden; position:relative;">
+    <MudDrawerContainer>
+        <MudDrawer @bind-Open="_open" Elevation="2" Variant="@DrawerVariant.Persistent" Class="pa-2">
+            <MudCard Class="mud-height-full">
+                <MudCardContent>
+                    <MudForm ReadOnly="ReadOnly">
+                        <MudTextField @bind-Value="@NameDoc" T="string" Label="Заголовок" />
+                        <MudTextField @bind-Value="@AuthorDoc" ReadOnly="true" T="string" Label="Автор" />
+                        <MudDatePicker @bind-Date="@CreatedDateDoc" ReadOnly="true" Label="Дата создания" />
+                        <MudDatePicker @bind-Date="@ExpireDateDoc" IsDateDisabledFunc="@((DateTime dt)=>(dt < dateMinExpire))" Label="Действителен до" />
+                        <MudTextField @bind-Value="@PathDoc" T="string" Label="Путь" />
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" @onclick="Validate">Сохранить</MudButton>
+                    </MudForm>
+                </MudCardContent>
+            </MudCard>
+        </MudDrawer>
+        <div class="d-flex justify-center align-center">
+            <MudTextField @bind-Value="@DescriptionDoc" ReadOnly="ReadOnly" @ref="multilineReference" T="string" Label="Содержание документа" Lines="25"
+                          Variant="Variant.Outlined" Text="@DescriptionDoc" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Api"
+                          OnAdornmentClick="@(() => multilineReference.SelectAsync())" />
+        </div>
+    </MudDrawerContainer>
+</MudPaper>
+<MudText Class="mb-4">@result</MudText>
+
+@code {
+
+    private bool _open = true;
+    bool ReadOnly = false;
+    string result = "---";
+    private MudTextField<string>? multilineReference;
+
+    public required string NameDoc { get; set; }
+    public required string AuthorDoc { get; set; }
+    public string? DescriptionDoc { get; set; }
+    public DateTime? CreatedDateDoc { get; set; } = DateTime.Today;
+    public DateTime? ExpireDateDoc { get; set; }
+    public string PathDoc { get; set; } = "root\\";
+
+    private DateTime dateMinExpire = DateTime.Today.AddDays(1);
+    int authorId;
+
+    
+
+    public async Task Validate()
+    {
+        var ExpireDateDocUtc = DateTime.SpecifyKind((DateTime)ExpireDateDoc, DateTimeKind.Utc);
+
+        DocInfo docInfo = new DocInfo()
+        {
+            Id = authorId,
+            Name = NameDoc,
+            Author = AuthorDoc,
+            Path = PathDoc,
+            Description = DescriptionDoc,
+            CreatedDate = DateTime.UtcNow,
+            ExpireDate = ExpireDateDocUtc,
+        };
+        var httpClient = httpFactory.CreateClient("Aozh8");
+        var response = await httpClient.PostAsJsonAsync("api/Document", docInfo);
+        if (response.IsSuccessStatusCode)
+        {
+            result = $"Документ {docInfo.Name} успешно создан!";
+        }
+        else
+        {
+            result = "Ошибка. Документ не был добавлен в систему.";
+        }
+    }
+    private void DrawerToggle()
+    {
+        _open = !_open;
+    }
+} *@
+
+
