@@ -3,7 +3,6 @@ using DocumentPlus.Data.Models;
 using DocumentPlus.Shared.Dto.Docs;
 using DocumentPlus.Shared.Dto.Users;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http;
@@ -28,10 +27,13 @@ public class DocumentService
         // Получаем Id пользователя
         string? token = await httpContext.GetTokenAsync("access_token");
         JwtSecurityToken cler = new JwtSecurityTokenHandler().ReadJwtToken(token);
-        var claims = cler.Claims;
-        var UserId = claims.FirstOrDefault(c => c.Type == "UserId").Value;
+        IEnumerable<System.Security.Claims.Claim> claims = cler.Claims;
+        string UserId = claims.FirstOrDefault(c => c.Type == "UserId").Value;
 
-        if (UserId == null) return -2;
+        if (UserId == null)
+        {
+            return -2;
+        }
 
         int userId = Convert.ToInt32(UserId);
         User user = await DbContext.Users.FirstOrDefaultAsync(u => u.Id == userId)
@@ -102,8 +104,8 @@ public class DocumentService
         // Получаем Id пользователя
         string? token = await httpContext.GetTokenAsync("access_token");
         JwtSecurityToken cler = new JwtSecurityTokenHandler().ReadJwtToken(token);
-        var claims = cler.Claims;
-        var UserId = claims.FirstOrDefault(c => c.Type == "UserId").Value;
+        IEnumerable<System.Security.Claims.Claim> claims = cler.Claims;
+        string UserId = claims.FirstOrDefault(c => c.Type == "UserId").Value;
 
         int userId = Convert.ToInt32(UserId);
 
@@ -331,10 +333,13 @@ public class DocumentService
         // Получаем Id пользователя
         string? token = await httpContext.GetTokenAsync("access_token");
         JwtSecurityToken cler = new JwtSecurityTokenHandler().ReadJwtToken(token);
-        var claims = cler.Claims;
+        IEnumerable<System.Security.Claims.Claim> claims = cler.Claims;
         string UserId = claims.FirstOrDefault(c => c.Type == "UserId").Value;
 
-        if (UserId == null) return null;
+        if (UserId == null)
+        {
+            return null;
+        }
 
         int userId = Convert.ToInt32(UserId);
 
@@ -406,7 +411,10 @@ public class DocumentService
     {
         Document? document = await DbContext.Documents.FindAsync(id);
 
-        if (document == null) return;
+        if (document == null)
+        {
+            return;
+        }
 
         DbContext.Documents.Remove(document);
         await DbContext.SaveChangesAsync();
@@ -416,7 +424,10 @@ public class DocumentService
     {
         Document? document = await DbContext.Documents.FindAsync(updatedDocument.Id);
 
-        if (document == null) return;
+        if (document == null)
+        {
+            return;
+        }
 
         document.Name = updatedDocument.Name;
         document.Desc = updatedDocument.Description;
@@ -428,13 +439,13 @@ public class DocumentService
 
     public List<Folder> ParseFolders(List<DocInfoGet> documents)
     {
-        var folderDictionary = new Dictionary<string, Folder>();
+        Dictionary<string, Folder> folderDictionary = new Dictionary<string, Folder>();
 
         // Заполняем словарь папками и документами
-        foreach (var document in documents)
+        foreach (DocInfoGet document in documents)
         {
-            var parts = document.Path.Split('\\');
-            var currentFolder = string.Empty;
+            string[] parts = document.Path.Split('\\');
+            string currentFolder = string.Empty;
 
             for (int i = 0; i < parts.Length; i++)
             {
@@ -452,7 +463,7 @@ public class DocumentService
 
                     if (i > 0 && !folderDictionary[string.Join("\\", parts.Take(i))].SubFolders.Contains(folderDictionary[currentFolder])) // добавляем в родительскую папку
                     {
-                        var parentFolder = string.Join("\\", parts.Take(i));
+                        string parentFolder = string.Join("\\", parts.Take(i));
                         folderDictionary[parentFolder].SubFolders.Add(folderDictionary[currentFolder]);
                     }
                 }
@@ -461,7 +472,7 @@ public class DocumentService
                 {
                     if (i > 0 && !folderDictionary[string.Join("\\", parts.Take(i))].SubFolders.Contains(folderDictionary[currentFolder]))
                     {
-                        var parentFolder = string.Join("\\", parts.Take(i));
+                        string parentFolder = string.Join("\\", parts.Take(i));
                         folderDictionary[parentFolder].SubFolders.Add(folderDictionary[currentFolder]);
                     }
                 }

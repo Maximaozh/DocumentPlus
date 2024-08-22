@@ -1,0 +1,47 @@
+﻿@inject IHttpClientFactory httpFactory
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        
+        <MudTextField Label="Новое название" @bind-Value="Group.Name"/>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseDialog">Отменить</MudButton>
+        <MudButton OnClick="ConfirmClick">Выполнить</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private MudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public GroupInfo Group { get; set; } = new GroupInfo()
+        {
+            Name = "Выберите имя"
+        };
+
+    public async Task ConfirmClick()
+    {
+        var httpClient = httpFactory.CreateClient("Aozh8");
+
+        HttpResponseMessage response;
+
+        response = await httpClient.PostAsJsonAsync("api/group/create", Group);
+
+        if (response.IsSuccessStatusCode)
+        {
+            Snackbar.Add($"Успех!", Severity.Success);
+            MudDialog.Close();
+        }
+        else
+            Snackbar.Add($"Ошибка при выполнение операции", Severity.Error);
+
+    }
+
+    private void CloseDialog()
+    {
+        MudDialog.Close();
+    }
+}
