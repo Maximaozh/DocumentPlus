@@ -1,9 +1,9 @@
-﻿@page "/DocDetails/{id:int}"
+﻿@page "/DocGroupDetails/{id:int}"
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 
 @inject IHttpClientFactory httpFactory
-@inject CustomLocalStorage localStorage
+@inject ILocalStorageService localStorage
 @inject NavigationManager NavManager
 
 
@@ -64,18 +64,11 @@ else
     {
         try
         {
-            var Role = await localStorage.GetValueAsync<string>("UserInfo:Role");
+            var Role = await localStorage.GetItemAsync<string>("UserInfo:Role");
             var httpClient = httpFactory.CreateClient("Aozh8");
 
-            if (Role == "Администратор")
-            {
-                document = await httpClient.GetFromJsonAsync<DocInfoGetId>($"api/documents/{id}");
-            }
-            else
-            {
-                document = await httpClient.GetFromJsonAsync<DocInfoGetId>($"api/user/documents/{id}");
-            }
-
+            document = await httpClient.GetFromJsonAsync<DocInfoGetId>($"api/group/documents/{id}");
+           
             DocAuthor = document.AuthorName + " " + document.AuthorSurname;
             CreatedDateDoc = document.CreatedDate;
             ExpireDateDoc = document.ExpireDate;
@@ -92,16 +85,7 @@ else
     }
     public async Task RedirectToDocList()
     {
-        var Role = await localStorage.GetValueAsync<string>("UserInfo:Role");
-
-        if (Role == "Администратор")
-        {
-            NavManager.NavigateTo("/DocWork");
-        }
-        else
-        {
-            NavManager.NavigateTo("/DocList");
-        }
+        NavManager.NavigateTo("/DocList");
     }
 }
 

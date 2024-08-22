@@ -23,21 +23,27 @@
             </MudButtonGroup>
         </MudStack>
 
-        <MudTextField @bind-Value="_immediateText"
-                      HelperText="@_immediateText" Label="Поиск" Variant="Variant.Outlined"
+        <MudTextField T="string" ValueChanged="@(s=>OnSearch(s))"
+                      HelperText="@searchString" Label="Поиск" Variant="Variant.Outlined"
                       Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" />
 
         <MudStack Row Style="flex-wrap:wrap">
-            @if (documents != null)
+
+             @if (documents_group != null)
             {
-                @foreach (var item in documents)
+                @foreach (var item in documents_group)
                 {
                     <MudBreakpointProvider>
                         <MudHidden Breakpoint="Breakpoint.SmAndUp" Invert="true">
                             <MudCard Class="pa-5">
                                 <MudCardContent>
                                     <MudText>@item.Name</MudText>
-                                    <MudText Typo="Typo.body2">Автор: @item.UserId</MudText>
+                                        <MudText Typo="Typo.body2">Автор: @item.AuthorName @item.AuthorSurname</MudText>
+
+                                        @if (item.GroupName != null)
+                                    {
+                                        <MudText Typo="Typo.body2">Группа: @item.GroupName</MudText>
+                                    }
 
                                     @if (@item.ExpireDate.Subtract(DateTime.Now).TotalDays > 0)
                                     {
@@ -56,9 +62,31 @@
                                     }
                                 </MudCardContent>
                                 <MudCardActions>
-                                    <MudButton Variant="Variant.Text" Color="Color.Primary" @onclick="() => RedirectToViewDoc(item.Id)">Подробнее</MudButton>
-                                    <MudButton Variant="Variant.Text" Color="Color.Primary" @onclick="() => RedirectToEditDoc(item.Id)">Редактировать</MudButton>
-                                    <MudButton Variant="Variant.Text" Color="Color.Error" @onclick="() => DeleteDocument(item.Id)">Удалить</MudButton>
+                                    @if (item.AccessLevel == 0)
+                                    {
+                                        <MudButton Variant="Variant.Text" Color="Color.Primary" @onclick="() => RedirectToViewDoc(item.Id)">Подробнее</MudButton>
+                                        <MudButton Variant="Variant.Text" Color="Color.Primary" @onclick="() => RedirectToEditDoc(item.Id)">Редактировать</MudButton>
+                                        <MudButton Variant="Variant.Text" Color="Color.Error" @onclick="() => DeleteDocument(item.Id)">Удалить</MudButton>
+                                    }
+                                    else if (item.AccessLevel == 1)
+                                    {
+                                        @if (@item.ExpireDate.Subtract(DateTime.Now).TotalDays < 0)
+                                        {
+                                            <MudButton Variant="Variant.Text" Disabled="true" Color="Color.Primary" @onclick="() => RedirectToViewDocGroup(item.Id)">Подробнее</MudButton>
+                                            <MudButton Variant="Variant.Text" Disabled="true" Color="Color.Primary" @onclick="() => RedirectToEditDocGroup(item.Id)">Редактировать</MudButton>
+                                        }
+                                        <MudButton Variant="Variant.Text" Color="Color.Primary" @onclick="() => RedirectToViewDocGroup(item.Id)">Подробнее</MudButton>
+                                        <MudButton Variant="Variant.Text" Color="Color.Primary" @onclick="() => RedirectToEditDocGroup(item.Id)">Редактировать</MudButton>
+                                    }
+
+                                    else
+                                    {
+                                        @if (@item.ExpireDate.Subtract(DateTime.Now).TotalDays < 0)
+                                        {
+                                            <MudButton Variant="Variant.Text" Disabled="true" Color="Color.Primary" @onclick="() => RedirectToViewDocGroup(item.Id)">Подробнее</MudButton>
+                                        }
+                                        <MudButton Variant="Variant.Text" Color="Color.Primary" @onclick="() => RedirectToViewDocGroup(item.Id)">Подробнее</MudButton>
+                                    }
                                 </MudCardActions>
                             </MudCard>
                         </MudHidden>
@@ -87,26 +115,46 @@
 @code
 {
     int activeIndex = 2;
-    string _immediateText = "";
+    string? searchString;
     private bool isDeleting = false;
 
     private List<DocInfoGet>? documents = new List<DocInfoGet>();
+    private List<DocInfoGet>? documents_group = new List<DocInfoGet>();
     private List<Folder>? folders = new List<Folder>();
 
     protected override async Task OnInitializedAsync()
     {
         var httpClient = httpFactory.CreateClient("Aozh8");
-        documents = await httpClient.GetFromJsonAsync<List<DocInfoGet>>("api/documents/user");
-        folders = await httpClient.GetFromJsonAsync<List<Folder>>("api/documents/tree/user");
+        folders = await httpClient.GetFromJsonAsync<List<Folder>>($"api/documents/tree/group");
+        documents_group = await httpClient.GetFromJsonAsync<List<DocInfoGet>>($"api/documents/group?filter={searchString}");
     }
+
+    public async Task OnSearch(string text)
+    {
+        searchString = text;
+        var httpClient = httpFactory.CreateClient("Aozh8");
+        documents_group = await httpClient.GetFromJsonAsync<List<DocInfoGet>>($"api/documents/group?filter={searchString}");
+    }
+
     public void RedirectToViewDoc(int id)
     {
         NavManager.NavigateTo($"/DocDetails/{id}");
     }
+
+    public void RedirectToViewDocGroup(int id)
+    {
+        NavManager.NavigateTo($"/DocGroupDetails/{id}");
+    }
+
     public void RedirectToEditDoc(int id)
     {
         NavManager.NavigateTo($"/DocEdit/{id}");
     }
+    public void RedirectToEditDocGroup(int id)
+    {
+        NavManager.NavigateTo($"/DocGroupEdit/{id}");
+    }
+
     private async Task DeleteDocument(int id)
     {
         var confirm = await JS.InvokeAsync<bool>("confirm", "Вы хотите удалить этот документ?");
@@ -116,8 +164,8 @@
             var httpClient = httpFactory.CreateClient("Aozh8");
             await httpClient.DeleteAsync($"api/document/{id}");
             StateHasChanged();
-            documents = await httpClient.GetFromJsonAsync<List<DocInfoGet>>("api/documents/user");
-            folders = await httpClient.GetFromJsonAsync<List<Folder>>("api/documents/tree/user");
+            documents_group = await httpClient.GetFromJsonAsync<List<DocInfoGet>>($"api/documents/group?filter={searchString}");
+            folders = await httpClient.GetFromJsonAsync<List<Folder>>("api/documents/tree/group");
             isDeleting = false;
         }
     }

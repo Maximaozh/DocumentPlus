@@ -23,13 +23,13 @@
             </MudButtonGroup>
         </MudStack>
 
-        <MudTextField @bind-Value="_immediateText"
-                      HelperText="@_immediateText" Label="Поиск" Variant="Variant.Outlined"
-                      Adornment="Adornment.None" AdornmentIcon="@Icons.Material.Filled.Search" />
+        <MudTextField T="string" ValueChanged="@(s=>OnSearch(s))"
+                      HelperText="@searchString" Label="Поиск" Variant="Variant.Outlined"
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
 
         <MudStack Row Style="flex-wrap:wrap">
 
-            @if (documents != null)
+             @if (documents != null)
             {
                 @foreach (var item in documents)
                 {
@@ -38,9 +38,9 @@
                             <MudCard Class="pa-5">
                                 <MudCardContent>
                                     <MudText>@item.Name</MudText>
-                                     <MudText>@item.UserId</MudText>
+                                        <MudText>@item.UserId</MudText>
 
-                                    @if (@item.ExpireDate.Subtract(DateTime.Now).TotalDays > 0)
+                                        @if (@item.ExpireDate.Subtract(DateTime.Now).TotalDays > 0)
                                     {
                                         @if (@item.ExpireDate.Subtract(DateTime.Now).TotalDays < 1)
                                         {
@@ -77,18 +77,18 @@
         {
             <DocTree FolderTree="folders" />
         }
-       
+
     </MudPaper>
 </MudStack>
- @if (isDeleting)
-    {
-        <MudProgressLinear />
-    }
+@if (isDeleting)
+{
+    <MudProgressLinear />
+}
 
 @code
 {
     int activeIndex = 2;
-    string _immediateText = "";
+    string? searchString = null;
     private bool isDeleting = false;
 
     private List<DocInfoGet>? documents = new List<DocInfoGet>();
@@ -97,8 +97,15 @@
     protected override async Task OnInitializedAsync()
     {
         var httpClient = httpFactory.CreateClient("Aozh8");
-        documents = await httpClient.GetFromJsonAsync<List<DocInfoGet>>("api/DocWork");
-        folders = await httpClient.GetFromJsonAsync<List<Folder>>("api/documents/tree");
+        documents = await httpClient.GetFromJsonAsync<List<DocInfoGet>>($"api/DocWork?filter={searchString}");
+        folders = await httpClient.GetFromJsonAsync<List<Folder>>($"api/documents/tree?filter={searchString}");
+    }
+    public async Task OnSearch(string text)
+    {
+        searchString = text;
+        var httpClient = httpFactory.CreateClient("Aozh8");
+        documents = await httpClient.GetFromJsonAsync<List<DocInfoGet>>($"api/DocWork?filter={searchString}");
+        folders = await httpClient.GetFromJsonAsync<List<Folder>>($"api/documents/tree?filter={searchString}");
     }
     public void RedirectToViewDoc(int id)
     {
@@ -117,8 +124,8 @@
             var httpClient = httpFactory.CreateClient("Aozh8");
             await httpClient.DeleteAsync($"api/document/{id}");
             StateHasChanged();
-            documents = await httpClient.GetFromJsonAsync<List<DocInfoGet>>("api/DocWork");
-            folders = await httpClient.GetFromJsonAsync<List<Folder>>("api/documents/tree");
+            documents = await httpClient.GetFromJsonAsync<List<DocInfoGet>>($"api/DocWork?filter={searchString}");
+            folders = await httpClient.GetFromJsonAsync<List<Folder>>($"api/documents/tree?filter={searchString}");
             isDeleting = false;
         }
     }

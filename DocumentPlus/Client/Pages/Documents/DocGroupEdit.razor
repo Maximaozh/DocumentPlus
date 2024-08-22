@@ -1,6 +1,4 @@
-﻿@page "/DocEdit/{id:int}"
-@using DocumentPlus.Client.Data
-@using DocumentPlus.Shared.Dto.Docs
+﻿@page "/DocGroupEdit/{id:int}"
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 
@@ -8,7 +6,7 @@
 @inject CustomLocalStorage localStorage
 @inject NavigationManager NavManager
 
-@attribute [Authorize]
+@attribute [Authorize(Roles = "Пользователь")]
 
 @if (isLoading)
 {
@@ -17,37 +15,33 @@
 
 else if (document != null)
 {
-    <DocForm docPage="docParam" OnSaveClick="UpdateDocument"/>
+    <DocForm docPage="docParam" OnSaveClick="UpdateDocument" />
 }
 
 else
 {
     <p>Такой документ не существует</p>
 }
+
 @code {
 
     [Parameter]
     public int id { get; set; }
     private DocInfoGetId? document;
     private bool isLoading = true;
-    DocPageParameter? docParam;
+    DocPageParameter docParam;
     string? Role;
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            Role = await localStorage.GetValueAsync<string>("UserInfo:Role"); var httpClient = httpFactory.CreateClient("Aozh8");
-
-            if (Role == "Администратор")
+            var httpClient = httpFactory.CreateClient("Aozh8");
+            document = await httpClient.GetFromJsonAsync<DocInfoGetId>($"api/group/documents/{id}");
+            if (document.AccessLevel > 1)
             {
-                document = await httpClient.GetFromJsonAsync<DocInfoGetId>($"api/documents/{id}");
+                NavManager.NavigateTo("/NotFound");
             }
-            else
-            {
-                document = await httpClient.GetFromJsonAsync<DocInfoGetId>($"api/user/documents/{id}");
-            }
-
             docParam = new DocPageParameter()
                 {
                     NameDoc = document.Name,
@@ -57,7 +51,7 @@ else
                     ExpireDateDoc = document.ExpireDate,
                     PathDoc = document.Path,
                     ReadOnlyText = false,
-                    ReadOnlyForm = false,
+                    ReadOnlyForm = true,
                 };
 
             isLoading = false;
@@ -88,7 +82,7 @@ else
             {
                 NavManager.NavigateTo("/DocList");
             }
-           
+
         }
     }
 }
@@ -176,6 +170,7 @@ else
         }
     }
 } *@
+
 
 
 

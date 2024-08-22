@@ -1,5 +1,5 @@
-﻿namespace DocumentPlus.Shared.Dto.Docs;
-
+﻿namespace DocumentPlus.Shared.Dto.Docs
+{
     //Информация о документе
     public class DocInfo
     {
@@ -18,6 +18,10 @@
         public DateTime ExpireDate { get; set; }
         public int UserId { get; set; }
         public required string Path { get; set; }
+        public string? AuthorName { get; set; }
+        public string? AuthorSurname { get; set; }
+        public string? GroupName { get; set; }
+        public int AccessLevel { get; set; }
     }
     public class DocInfoGetId
     {
@@ -29,8 +33,9 @@
         public required string Path { get; set; }
         public required string AuthorName { get; set; }
         public required string AuthorSurname { get; set; }
-}
-public class TreeItem
+        public int AccessLevel { get; set; }
+    }
+    public class TreeItem
     {
         public string? Name { get; set; }
         public List<TreeItem> Children { get; set; } = new List<TreeItem>();
@@ -42,5 +47,6 @@ public class TreeItem
         public List<Folder> SubFolders { get; set; } = new List<Folder>();
         public List<DocInfoGet> Documents { get; set; } = new List<DocInfoGet>();
     }
+}
 
 
