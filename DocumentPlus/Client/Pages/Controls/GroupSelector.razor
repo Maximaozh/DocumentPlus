@@ -1,0 +1,91 @@
+﻿@inject IHttpClientFactory httpFactory
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudSelect T="GroupInfo" @bind-SelectedValues="SelectedGroup">
+            @if(groups is not null)
+            {
+                @foreach(var item in groups)
+                {
+                    <MudSelectItem Value="@item"></MudSelectItem>
+                }
+            }
+        </MudSelect>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseDialog">Отменить</MudButton>
+        <MudButton OnClick="ConfirmClick">Выполнить</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private IEnumerable<GroupInfo> groups = null;
+
+    [CascadingParameter]
+    private MudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public HashSet<UserInfo> SelectedUsers { get; set; }
+
+    protected IEnumerable<GroupInfo> SelectedGroup { get; set; }
+
+    [Parameter]
+    public bool IsAdd { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var httpClient = httpFactory.CreateClient("Aozh8");
+        var response = await httpClient.GetAsync("api/group/get");
+        groups = await response.Content.ReadFromJsonAsync<List<GroupInfo>>();
+    }
+
+    protected async Task ConfirmClick()
+    {
+
+        if (IsAdd && (SelectedUsers is null || SelectedUsers.Count() == 0 || SelectedGroup is null || SelectedGroup.Count() != 1))
+            return;
+
+        var httpClient = httpFactory.CreateClient("Aozh8");
+
+        if (IsAdd)
+        {
+            var group = SelectedGroup.FirstOrDefault();
+
+            GroupWithUsers groupWithUsers = new GroupWithUsers()
+                {
+                    Id = group.Id,
+                    Name = group.Name,
+                    Users = SelectedUsers
+                };
+
+            var response = await httpClient.PostAsJsonAsync("api/group/addUsers", groupWithUsers);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add($"Успех!", Severity.Success);
+                MudDialog.Close();
+            }
+            else
+                Snackbar.Add($"Ошибка при выполнение операции", Severity.Error);
+
+        } else
+        {
+            var group = SelectedGroup.FirstOrDefault();
+
+            var response = await httpClient.PostAsJsonAsync("api/group/delete", group);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add($"Успех!", Severity.Success);
+                MudDialog.Close();
+            }
+            else
+                Snackbar.Add($"Ошибка при выполнение операции", Severity.Error);
+        }
+    }
+        private void CloseDialog()
+        {
+            MudDialog.Close();
+        }
+}

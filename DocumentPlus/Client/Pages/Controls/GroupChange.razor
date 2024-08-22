@@ -1,0 +1,76 @@
+﻿@inject IHttpClientFactory httpFactory
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudSelect T="GroupInfo" @bind-SelectedValues="SelectedGroup">
+            @if (groups is not null)
+            {
+                @foreach (var item in groups)
+                {
+                    <MudSelectItem Value="@item"></MudSelectItem>
+                }
+            }
+        </MudSelect>
+        <MudTextField Label="Название" @bind-Value="NewName" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseDialog">Отменить</MudButton>
+        <MudButton OnClick="ConfirmClick">Выполнить</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    protected IEnumerable<GroupInfo> SelectedGroup { get; set; }
+    private IEnumerable<GroupInfo> groups = null;
+
+    [CascadingParameter]
+    private MudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public GroupEdit Group { get; set; } = new GroupEdit()
+        {
+            Name = "Выберите имя",
+            OldName = "Старое имя"
+        };
+
+    public string NewName { get; set; } = "Новое имя";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var httpClient = httpFactory.CreateClient("Aozh8");
+        var response = await httpClient.GetAsync("api/group/get");
+        groups = await response.Content.ReadFromJsonAsync<List<GroupInfo>>();
+    }
+
+    public async Task ConfirmClick()
+    {
+        var httpClient = httpFactory.CreateClient("Aozh8");
+
+        HttpResponseMessage response;
+
+        var groupSelect = SelectedGroup.First();
+        var groupEdit = new GroupEdit()
+            {
+                Id = groupSelect.Id,
+                Name = NewName,
+                OldName = groupSelect.Name
+            };
+
+        response = await httpClient.PostAsJsonAsync("api/group/edit", (groupEdit as GroupEdit));
+
+        if (response.IsSuccessStatusCode)
+        {
+            Snackbar.Add($"Успех!", Severity.Success);
+            MudDialog.Close();
+        }
+        else
+            Snackbar.Add($"Ошибка при выполнение операции", Severity.Error);
+
+    }
+
+    private void CloseDialog()
+    {
+        MudDialog.Close();
+    }
+}

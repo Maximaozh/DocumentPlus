@@ -76,6 +76,7 @@ namespace DocumentPlus.Server.Services
                                          u.Name.ToLower().Contains(search))
                 .Count();
 
+
             IQueryable<UserInfo> query = dbContext.Users
                 .AsNoTracking()
                 .Where(u => u.Login.ToLower().Contains(search) ||

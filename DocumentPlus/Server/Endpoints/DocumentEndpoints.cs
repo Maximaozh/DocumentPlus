@@ -1,31 +1,28 @@
 ﻿using DocumentPlus.Server.Services;
 using DocumentPlus.Shared.Dto.Docs;
-using Microsoft.AspNetCore.Http;
 
 namespace DocumentPlus.Server.Endpoints
 {
-	public static class DocumentEndpoints
-	{
-		public static IEndpointRouteBuilder MapDocEndpoints(this IEndpointRouteBuilder app)
-		{
-			app.MapPost("api/Document", Creation).RequireAuthorization();
-			app.MapGet("api/documents/user", GettingByUser).RequireAuthorization();
+    public static class DocumentEndpoints
+    {
+        public static IEndpointRouteBuilder MapDocEndpoints(this IEndpointRouteBuilder app)
+        {
+            app.MapPost("api/Document", Creation).RequireAuthorization();
+            app.MapGet("api/documents/user", GettingByUser).RequireAuthorization();
             app.MapGet("api/documents/tree/user", GettingTreeByUser).RequireAuthorization();
             app.MapGet("api/DocWork", Getting).RequireAuthorization(policy => policy.RequireRole("Администратор"));
             app.MapGet("api/documents/tree", GettingTree).RequireAuthorization(policy => policy.RequireRole("Администратор"));
 
             app.MapGet("/api/documents/{id}", async (int id, DocumentService documentService) =>
             {
-                var document = await documentService.GetById(id);
-                if (document == null) return Results.NotFound();
-                return Results.Ok(document);
+                DocInfoGetId? document = await documentService.GetById(id);
+                return document == null ? Results.NotFound() : Results.Ok(document);
             }).RequireAuthorization(policy => policy.RequireRole("Администратор"));
 
             app.MapGet("/api/user/documents/{id}", async (int id, DocumentService documentService, HttpContext httpContext) =>
             {
-                var document = await documentService.GetByIdAndUser(id, httpContext);
-                if (document == null) return Results.NotFound();
-                return Results.Ok(document);
+                DocInfoGetId? document = await documentService.GetByIdAndUser(id, httpContext);
+                return document == null ? Results.NotFound() : Results.Ok(document);
             }).RequireAuthorization();
 
             app.MapDelete("/api/document/{id}", async (int id, DocumentService documentService) =>
@@ -48,24 +45,24 @@ namespace DocumentPlus.Server.Endpoints
             }).RequireAuthorization();
 
             return app;
-		}
+        }
 
-		private static async Task<IResult> Creation(DocumentService documentService, DocInfo document, HttpContext httpContext)
-		{
-			int response = await documentService.Create(document, httpContext);
-			return Results.Ok(response);
-		}
+        private static async Task<IResult> Creation(DocumentService documentService, DocInfo document, HttpContext httpContext)
+        {
+            int response = await documentService.Create(document, httpContext);
+            return Results.Ok(response);
+        }
 
-		private static async Task<IResult> Getting(DocumentService documentService)
-		{
-			List<DocInfoGet> response = await documentService.Get();
-			return Results.Json(response);
-		}
+        private static async Task<IResult> Getting(DocumentService documentService)
+        {
+            List<DocInfoGet> response = await documentService.Get();
+            return Results.Json(response);
+        }
 
         private static async Task<IResult> GettingTree(DocumentService documentService)
         {
             List<DocInfoGet> documents = await documentService.Get();
-            var tree = documentService.ParseFolders(documents);
+            List<Folder> tree = documentService.ParseFolders(documents);
             return Results.Json(tree);
         }
 
@@ -78,7 +75,7 @@ namespace DocumentPlus.Server.Endpoints
         private static async Task<IResult> GettingTreeByUser(DocumentService documentService, HttpContext httpContext)
         {
             List<DocInfoGet> documents = await documentService.GetByUser(httpContext);
-            var tree = documentService.ParseFolders(documents);
+            List<Folder> tree = documentService.ParseFolders(documents);
             return Results.Json(tree);
         }
     }
