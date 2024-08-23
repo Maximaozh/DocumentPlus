@@ -3,7 +3,7 @@
 
 <MudDialog>
     <DialogContent>
-        <MudSelect T="GroupInfo" @bind-SelectedValues="SelectedGroup">
+        <MudSelect T="GroupInfo" @bind-SelectedValues="SelectedGroup" >
             @if(groups is not null)
             {
                 @foreach(var item in groups)

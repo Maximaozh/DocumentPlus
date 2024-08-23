@@ -41,6 +41,7 @@ builder.Services.AddRazorPages();
 builder.Services.AddDbContext<AppContextDB>(options =>
 options.UseNpgsql(builder.Configuration.GetConnectionString("MyConnection")));
 
+builder.Services.AddScoped<AccessService>();
 builder.Services.AddScoped<GroupService>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<DocumentService>();
@@ -72,6 +73,7 @@ app.MapRazorPages();
 app.MapControllers();
 app.MapFallbackToFile("index.html");
 
+app.MapAccessEndpoints();
 app.MapGroupEndpoints();
 app.MapUserEndpoints();
 app.MapDocEndpoints();

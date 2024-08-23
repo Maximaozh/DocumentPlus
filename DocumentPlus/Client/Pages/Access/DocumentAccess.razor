@@ -1,0 +1,103 @@
+﻿@page "/access"
+@inject IHttpClientFactory httpFactory
+@inject ISnackbar Snackbar
+
+<MudTextField Label="Документ" @bind-Value="SearchDoc" TextChanged="ReloadDocs"/>
+<MudGrid Spacing="2">
+	<MudItem xs="2">
+        <MudPaper Width="300px">
+            <MudSelect T="DocumentsNamed" @bind-SelectedValues="SelectedDocument" ValueChanged="OnSelectedDocChangedClick">
+                @if (DocumentList is not null)
+                {
+                    @foreach (var item in DocumentList)
+                    {
+                        <MudSelectItem  Value="item" Text="@item.Name" Icon="@Icons.Material.Filled.Inbox" />
+                    }
+                }
+            </MudSelect>
+        </MudPaper>
+	</MudItem>
+	<MudItem xs="10">
+        <MudDropContainer T="GroupAccess" ItemDropped="ItemUpdated" Items="_items" ItemsSelector="@((item,dropzone) => item.Identifier == dropzone)" Class="d-flex flex-wrap flex-grow-1">
+            <ChildContent>
+                <MudDropZone T="GroupAccess" Identifier="-1" Class="rounded mud-background-gray pa-6 ma-8 flex-grow-1">
+                    <MudText Typo="Typo.h6" Class="mb-4">Нет прав</MudText>
+                </MudDropZone>
+                <MudDropZone T="GroupAccess" Identifier="1" Class="rounded mud-background-gray pa-6 ma-8 flex-grow-1">
+                    <MudText Typo="Typo.h6" Class="mb-4">Чтение/Запись</MudText>
+                </MudDropZone>
+                <MudDropZone T="GroupAccess" Identifier="2" Class="rounded mud-background-gray pa-6 ma-8 flex-grow-1">
+                    <MudText Typo="Typo.h6" Class="mb-4">Чтение</MudText>
+                </MudDropZone>
+            </ChildContent>
+            <ItemRenderer>
+                <MudPaper Elevation="25" Class="pa-4 my-4">@context.Name</MudPaper>
+            </ItemRenderer>
+        </MudDropContainer>
+	</MudItem>
+</MudGrid>
+
+@code {
+    private IEnumerable<DocumentsNamed> SelectedDocument { get; set; }
+    private List<DocumentsNamed> DocumentList { get; set; } 
+    private string SearchDoc { get; set;}
+    private DocumentsNamed documentNamed { get; set; }
+
+    private List<GroupAccess> _items = new List<GroupAccess>();
+
+    private List<GroupAccess> NoRights{ get; set; }
+    private List<GroupAccess> Read{ get; set; }
+    private List<GroupAccess> Edit{ get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadDocs();
+    }
+
+    protected async Task ReloadDocs()
+    {
+        var httpClient = httpFactory.CreateClient("Aozh8");
+        var filter = new DocumentsBySearch() { Search = SearchDoc };
+        var response = await httpClient.PostAsJsonAsync("api/access/getDocs", filter);
+        DocumentList = await response.Content.ReadFromJsonAsync<List<DocumentsNamed>>();
+    }
+
+    private async void ItemUpdated(MudItemDropInfo<GroupAccess> dropItem)
+    {
+        dropItem.Item.Identifier = dropItem.DropzoneIdentifier;
+
+        SetRights rights = new SetRights()
+            {
+                Document = documentNamed,
+                GroupAccess = dropItem.Item
+            };
+
+        var httpClient = httpFactory.CreateClient("Aozh8");
+        var response = await httpClient.PostAsJsonAsync("api/access/changeRights", rights);
+        StateHasChanged();
+    }
+
+    protected async void OnSelectedDocChangedClick(DocumentsNamed values)
+    {
+        var doc = values;
+        var httpClient = httpFactory.CreateClient("Aozh8");
+        documentNamed = values;
+
+        var response = await httpClient.PostAsJsonAsync("api/access/getNoRightsGroups", doc);
+        NoRights = await response.Content.ReadFromJsonAsync<List<GroupAccess>>();
+
+        response = await httpClient.PostAsJsonAsync("api/access/getReadGroups", doc);
+        Read = await response.Content.ReadFromJsonAsync<List<GroupAccess>>();
+
+        response = await httpClient.PostAsJsonAsync("api/access/getEditGroups", doc);
+        Edit = await response.Content.ReadFromJsonAsync<List<GroupAccess>>();
+
+        _items.Clear();
+        _items.AddRange(NoRights);
+        _items.AddRange(Read);
+        _items.AddRange(Edit);
+        StateHasChanged();
+    }
+
+
+}
