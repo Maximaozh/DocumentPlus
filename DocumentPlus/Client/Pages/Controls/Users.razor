@@ -155,7 +155,7 @@
 
         await usersTable.ReloadServerData();
         await groupsTable.ReloadServerData();
-        StateHasChanged();
+        await InvokeAsync(StateHasChanged);
     }
     private async Task OnGroupDismissClick()
     {
@@ -215,7 +215,7 @@
         await DialogService.ShowAsync<RegistrateUser>("Добавление", options);
         await usersTable.ReloadServerData();
         await groupsTable.ReloadServerData();
-        StateHasChanged();
+        await InvokeAsync(StateHasChanged);
     }
     private async Task OnUserEditClick()
     {

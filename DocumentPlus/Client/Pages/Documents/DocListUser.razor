@@ -75,8 +75,12 @@
                                             <MudButton Variant="Variant.Text" Disabled="true" Color="Color.Primary" @onclick="() => RedirectToViewDocGroup(item.Id)">Подробнее</MudButton>
                                             <MudButton Variant="Variant.Text" Disabled="true" Color="Color.Primary" @onclick="() => RedirectToEditDocGroup(item.Id)">Редактировать</MudButton>
                                         }
-                                        <MudButton Variant="Variant.Text" Color="Color.Primary" @onclick="() => RedirectToViewDocGroup(item.Id)">Подробнее</MudButton>
-                                        <MudButton Variant="Variant.Text" Color="Color.Primary" @onclick="() => RedirectToEditDocGroup(item.Id)">Редактировать</MudButton>
+                                        else
+                                        {
+                                            <MudButton Variant="Variant.Text" Color="Color.Primary" @onclick="() => RedirectToViewDocGroup(item.Id)">Подробнее</MudButton>
+                                            <MudButton Variant="Variant.Text" Color="Color.Primary" @onclick="() => RedirectToEditDocGroup(item.Id)">Редактировать</MudButton>
+                                        }
+                                        
                                     }
 
                                     else
@@ -85,7 +89,11 @@
                                         {
                                             <MudButton Variant="Variant.Text" Disabled="true" Color="Color.Primary" @onclick="() => RedirectToViewDocGroup(item.Id)">Подробнее</MudButton>
                                         }
-                                        <MudButton Variant="Variant.Text" Color="Color.Primary" @onclick="() => RedirectToViewDocGroup(item.Id)">Подробнее</MudButton>
+                                        else
+                                        {
+                                            <MudButton Variant="Variant.Text" Color="Color.Primary" @onclick="() => RedirectToViewDocGroup(item.Id)">Подробнее</MudButton>
+                                        }
+                                       
                                     }
                                 </MudCardActions>
                             </MudCard>

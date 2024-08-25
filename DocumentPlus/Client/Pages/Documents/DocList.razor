@@ -38,7 +38,7 @@
                             <MudCard Class="pa-5">
                                 <MudCardContent>
                                     <MudText>@item.Name</MudText>
-                                        <MudText>@item.UserId</MudText>
+                                    <MudText>@item.AuthorName @item.AuthorSurname</MudText>
 
                                         @if (@item.ExpireDate.Subtract(DateTime.Now).TotalDays > 0)
                                     {

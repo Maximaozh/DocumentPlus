@@ -1,7 +1,5 @@
 ﻿using DocumentPlus.Server.Services;
 using DocumentPlus.Shared.Dto.Docs;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 
 namespace DocumentPlus.Server.Endpoints
 {
@@ -27,9 +25,8 @@ namespace DocumentPlus.Server.Endpoints
             }).RequireAuthorization();
             app.MapGet("/api/group/documents/{id}", async (int id, DocumentService documentService, HttpContext httpContext) =>
             {
-                var document = await documentService.GetByIdAndGroup(id, httpContext);
-                if (document == null) return Results.NotFound();
-                return Results.Ok(document);
+                DocInfoGetId? document = await documentService.GetByIdAndGroup(id, httpContext);
+                return document == null ? Results.NotFound() : Results.Ok(document);
             }).RequireAuthorization();
             app.MapDelete("/api/document/{id}", async (int id, DocumentService documentService) =>
             {
@@ -67,7 +64,7 @@ namespace DocumentPlus.Server.Endpoints
         private static async Task<IResult> GettingTree(string filter, DocumentService documentService)
         {
             List<DocInfoGet> documents = await documentService.Get(filter);
-            var tree = documentService.ParseFolders(documents);
+            List<Folder> tree = documentService.ParseFolders(documents);
             return Results.Json(tree);
         }
 

@@ -1,12 +1,9 @@
 ﻿using DocumentPlus.Data.AppContextDB;
 using DocumentPlus.Data.Models;
 using DocumentPlus.Shared.Dto.Docs;
-using DocumentPlus.Shared.Dto.Users;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using System.IdentityModel.Tokens.Jwt;
-using System.Net.Http;
-using System.Xml.Linq;
 
 namespace DocumentPlus.Server.Services;
 
@@ -22,7 +19,10 @@ public class DocumentService
 
     public async Task<int> Create(DocInfo documentInfo, HttpContext httpContext)
     {
-        if (documentInfo is null) return -1;
+        if (documentInfo is null)
+        {
+            return -1;
+        }
 
         // Получаем Id пользователя
         string? token = await httpContext.GetTokenAsync("access_token");
@@ -77,7 +77,9 @@ public class DocumentService
                 CreatedDate = d.Created,
                 ExpireDate = d.ExpireDate,
                 Path = d.Path,
-                UserId = d.User.Id
+                UserId = d.User.Id,
+                AuthorName = d.User.Name,
+                AuthorSurname = d.User.Surname,
             }).ToListAsync();
         }
         string filter = search.ToLower();
@@ -95,7 +97,9 @@ public class DocumentService
                 CreatedDate = d.Created,
                 ExpireDate = d.ExpireDate,
                 Path = d.Path,
-                UserId = d.User.Id
+                UserId = d.User.Id,
+                AuthorName = d.User.Name,
+                AuthorSurname = d.User.Surname,
             }).ToListAsync();
     }
 
@@ -136,8 +140,8 @@ public class DocumentService
 
         string? token = await httpContext.GetTokenAsync("access_token");
         JwtSecurityToken cler = new JwtSecurityTokenHandler().ReadJwtToken(token);
-        var claims = cler.Claims;
-        var UserId = claims.FirstOrDefault(c => c.Type == "UserId").Value;
+        IEnumerable<System.Security.Claims.Claim> claims = cler.Claims;
+        string UserId = claims.FirstOrDefault(c => c.Type == "UserId").Value;
 
         int userId = Convert.ToInt32(UserId);
 
@@ -173,12 +177,12 @@ public class DocumentService
         var allDocuments = authorDocuments.Concat(groupDocuments);
 
         // Создаем словарь для хранения максимального уровня доступа для каждого документа
-        var documentAccessLevels = new Dictionary<int, (DocInfoGet docs, int MinAccessLevel)>();
+        Dictionary<int, (DocInfoGet docs, int MinAccessLevel)> documentAccessLevels = new Dictionary<int, (DocInfoGet docs, int MinAccessLevel)>();
 
         foreach (var entry in allDocuments)
         {
             // Проверяем, содержится ли документ в словаре
-            if (documentAccessLevels.TryGetValue(entry.Document.Id, out var existingEntry))
+            if (documentAccessLevels.TryGetValue(entry.Document.Id, out (DocInfoGet docs, int MinAccessLevel) existingEntry))
             {
                 // Если документ уже существует, обновляем, если новый уровень доступа выше
                 if (entry.Access_level < existingEntry.MinAccessLevel)
@@ -218,7 +222,7 @@ public class DocumentService
         }
 
         // Получаем уникальные документы с наивысшим уровнем доступа
-        var availableDocuments = documentAccessLevels.Values.Select(x => x.docs).ToList();
+        List<DocInfoGet> availableDocuments = documentAccessLevels.Values.Select(x => x.docs).ToList();
 
         return availableDocuments;
     }
@@ -227,8 +231,8 @@ public class DocumentService
     {
         string? token = await httpContext.GetTokenAsync("access_token");
         JwtSecurityToken cler = new JwtSecurityTokenHandler().ReadJwtToken(token);
-        var claims = cler.Claims;
-        var UserId = claims.FirstOrDefault(c => c.Type == "UserId").Value;
+        IEnumerable<System.Security.Claims.Claim> claims = cler.Claims;
+        string UserId = claims.FirstOrDefault(c => c.Type == "UserId").Value;
 
         int userId = Convert.ToInt32(UserId);
 
@@ -260,12 +264,12 @@ public class DocumentService
         var allDocuments = authorDocuments.Concat(groupDocuments);
 
         // Создаем словарь для хранения максимального уровня доступа для каждого документа
-        var documentAccessLevels = new Dictionary<int, (DocInfoGet docs, int MinAccessLevel)>();
+        Dictionary<int, (DocInfoGet docs, int MinAccessLevel)> documentAccessLevels = new Dictionary<int, (DocInfoGet docs, int MinAccessLevel)>();
 
         foreach (var entry in allDocuments)
         {
             // Проверяем, содержится ли документ в словаре
-            if (documentAccessLevels.TryGetValue(entry.Document.Id, out var existingEntry))
+            if (documentAccessLevels.TryGetValue(entry.Document.Id, out (DocInfoGet docs, int MinAccessLevel) existingEntry))
             {
                 // Если документ уже существует, обновляем, если новый уровень доступа выше
                 if (entry.Access_level < existingEntry.MinAccessLevel)
@@ -305,7 +309,7 @@ public class DocumentService
         }
 
         // Получаем уникальные документы с наивысшим уровнем доступа
-        var availableDocuments = documentAccessLevels.Values.Select(x => x.docs).ToList();
+        List<DocInfoGet> availableDocuments = documentAccessLevels.Values.Select(x => x.docs).ToList();
 
         return availableDocuments;
     }
@@ -364,8 +368,8 @@ public class DocumentService
     {
         string? token = await httpContext.GetTokenAsync("access_token");
         JwtSecurityToken cler = new JwtSecurityTokenHandler().ReadJwtToken(token);
-        var claims = cler.Claims;
-        var UserId = claims.FirstOrDefault(c => c.Type == "UserId").Value;
+        IEnumerable<System.Security.Claims.Claim> claims = cler.Claims;
+        string UserId = claims.FirstOrDefault(c => c.Type == "UserId").Value;
 
         int userId = Convert.ToInt32(UserId);
 
