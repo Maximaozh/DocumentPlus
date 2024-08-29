@@ -28,6 +28,11 @@ namespace DocumentPlus.Server.Endpoints
                 DocInfoGetId? document = await documentService.GetByIdAndGroup(id, httpContext);
                 return document == null ? Results.NotFound() : Results.Ok(document);
             }).RequireAuthorization();
+            app.MapGet("/api/user/group/documents/{id}", async (int id, DocumentService documentService, HttpContext httpContext) =>
+            {
+                DocInfoGetId? document = await documentService.GetByIdAndUserGroup(id, httpContext);
+                return document == null ? Results.NotFound() : Results.Ok(document);
+            }).RequireAuthorization();
             app.MapDelete("/api/document/{id}", async (int id, DocumentService documentService) =>
             {
                 await documentService.Delete(id);
@@ -73,9 +78,9 @@ namespace DocumentPlus.Server.Endpoints
             List<DocInfoGet> response = await documentService.GetByUser(httpContext);
             return Results.Json(response);
         }
-        private static async Task<IResult> GettingTreeByUser(DocumentService documentService, HttpContext httpContext)
+        private static async Task<IResult> GettingTreeByUser(string filter, DocumentService documentService, HttpContext httpContext)
         {
-            List<DocInfoGet> documents = await documentService.GetByUser(httpContext);
+            List<DocInfoGet> documents = await documentService.GetByGroupAndSearch(httpContext, filter);
             List<Folder> tree = documentService.ParseFolders(documents);
             return Results.Json(tree);
         }

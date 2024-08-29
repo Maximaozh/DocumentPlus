@@ -4,7 +4,7 @@
 @page "/DocList"
 
 @inject IHttpClientFactory httpFactory
-@inject ILocalStorageService localStorage
+@inject CustomLocalStorage localStorage
 @inject NavigationManager NavManager
 @inject IJSRuntime JS
 
@@ -12,25 +12,30 @@
 
 @attribute [Authorize]
 
-<MudStack Row>
-    <MudPaper Style="padding: 15px;">
-        <MudStack Row>
-            <MudText Class="pa-2">Сортировка</MudText>
-            <MudButtonGroup Color="Color.Primary" Size="Size.Small" Variant="Variant.Outlined">
-                <MudButton>Название</MudButton>
-                <MudButton>Дата создания</MudButton>
-                <MudButton>Дата окончания</MudButton>
-            </MudButtonGroup>
-        </MudStack>
+@if (isLoading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-7" />
+}
 
-        <MudTextField T="string" ValueChanged="@(s=>OnSearch(s))"
-                      HelperText="@searchString" Label="Поиск" Variant="Variant.Outlined"
-                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" />
+else if (documents_group != null)
+{
+    <MudStack Row>
+        <MudPaper Style="padding: 15px;" Width="100%" >
+            @* <MudStack Row>
+                <MudText Class="pa-2">Сортировка</MudText>
+                <MudButtonGroup Color="Color.Primary" Size="Size.Small" Variant="Variant.Outlined">
+                    <MudButton>Название</MudButton>
+                    <MudButton>Дата создания</MudButton>
+                    <MudButton>Дата окончания</MudButton>
+                </MudButtonGroup>
+            </MudStack> *@
 
-        <MudStack Row Style="flex-wrap:wrap">
-
-             @if (documents_group != null)
-            {
+            <MudTextField Class="mb-5" T="string" ValueChanged="@(s=>OnSearch(s))"
+                          HelperText="@searchString" Label="Поиск" Variant="Variant.Outlined"
+                          Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" />
+    
+            <MudStack Row Style="flex-wrap:wrap; justify-content:center;">
+          
                 @foreach (var item in documents_group)
                 {
                     <MudBreakpointProvider>
@@ -40,7 +45,7 @@
                                     <MudText>@item.Name</MudText>
                                         <MudText Typo="Typo.body2">Автор: @item.AuthorName @item.AuthorSurname</MudText>
 
-                                        @if (item.GroupName != null)
+                                    @if (item.GroupName != null)
                                     {
                                         <MudText Typo="Typo.body2">Группа: @item.GroupName</MudText>
                                     }
@@ -72,17 +77,15 @@
                                     {
                                         @if (@item.ExpireDate.Subtract(DateTime.Now).TotalDays < 0)
                                         {
-                                            <MudButton Variant="Variant.Text" Disabled="true" Color="Color.Primary" @onclick="() => RedirectToViewDocGroup(item.Id)">Подробнее</MudButton>
-                                            <MudButton Variant="Variant.Text" Disabled="true" Color="Color.Primary" @onclick="() => RedirectToEditDocGroup(item.Id)">Редактировать</MudButton>
+                                            <MudButton Variant="Variant.Text" Disabled="true" Color="Color.Primary" @onclick="() => RedirectToViewDoc(item.Id)">Подробнее</MudButton>
+                                            <MudButton Variant="Variant.Text" Disabled="true" Color="Color.Primary" @onclick="() => RedirectToEditDoc(item.Id)">Редактировать</MudButton>
                                         }
                                         else
                                         {
-                                            <MudButton Variant="Variant.Text" Color="Color.Primary" @onclick="() => RedirectToViewDocGroup(item.Id)">Подробнее</MudButton>
-                                            <MudButton Variant="Variant.Text" Color="Color.Primary" @onclick="() => RedirectToEditDocGroup(item.Id)">Редактировать</MudButton>
+                                            <MudButton Variant="Variant.Text" Color="Color.Primary" @onclick="() => RedirectToViewDoc(item.Id)">Подробнее</MudButton>
+                                            <MudButton Variant="Variant.Text" Color="Color.Primary" @onclick="() => RedirectToEditDoc(item.Id)">Редактировать</MudButton>
                                         }
-                                        
                                     }
-
                                     else
                                     {
                                         @if (@item.ExpireDate.Subtract(DateTime.Now).TotalDays < 0)
@@ -91,30 +94,30 @@
                                         }
                                         else
                                         {
-                                            <MudButton Variant="Variant.Text" Color="Color.Primary" @onclick="() => RedirectToViewDocGroup(item.Id)">Подробнее</MudButton>
+                                            <MudButton Variant="Variant.Text" Color="Color.Primary" @onclick="() => RedirectToViewDoc(item.Id)">Подробнее</MudButton>
                                         }
-                                       
                                     }
                                 </MudCardActions>
                             </MudCard>
                         </MudHidden>
                     </MudBreakpointProvider>
                 }
-            }
-            else
+           
+            </MudStack>
+        </MudPaper>
+        <MudPaper Class="pa-2" Width="35%" Style="padding-bottom: 8px;">
+            @if (folders != null)
             {
-                <p>Документы не найдены.</p>
+                <DocTree FolderTree="folders" />
             }
-        </MudStack>
-    </MudPaper>
-    <MudPaper Class="mb-8 pa-2">
-        @if (folders != null)
-        {
-            <DocTree FolderTree="folders" />
-        }
 
-    </MudPaper>
-</MudStack>
+        </MudPaper>
+    </MudStack>
+}
+else
+{
+    <p>Документы не найдены.</p>
+}
 @if (isDeleting)
 {
     <MudProgressLinear />
@@ -125,22 +128,27 @@
     int activeIndex = 2;
     string? searchString;
     private bool isDeleting = false;
+    bool isLoading = true;
 
     private List<DocInfoGet>? documents = new List<DocInfoGet>();
-    private List<DocInfoGet>? documents_group = new List<DocInfoGet>();
+    private List<DocInfoGet>? documents_group;
     private List<Folder>? folders = new List<Folder>();
+    public string role;
 
     protected override async Task OnInitializedAsync()
     {
+        role = await localStorage.GetValueAsync<string>("User:Id");
         var httpClient = httpFactory.CreateClient("Aozh8");
-        folders = await httpClient.GetFromJsonAsync<List<Folder>>($"api/documents/tree/group");
+        folders = await httpClient.GetFromJsonAsync<List<Folder>>($"api/documents/tree/group?filter={searchString}");
         documents_group = await httpClient.GetFromJsonAsync<List<DocInfoGet>>($"api/documents/group?filter={searchString}");
+        isLoading = false;
     }
 
     public async Task OnSearch(string text)
     {
         searchString = text;
         var httpClient = httpFactory.CreateClient("Aozh8");
+        folders = await httpClient.GetFromJsonAsync<List<Folder>>($"api/documents/tree/group?filter={searchString}");
         documents_group = await httpClient.GetFromJsonAsync<List<DocInfoGet>>($"api/documents/group?filter={searchString}");
     }
 
@@ -173,7 +181,7 @@
             await httpClient.DeleteAsync($"api/document/{id}");
             StateHasChanged();
             documents_group = await httpClient.GetFromJsonAsync<List<DocInfoGet>>($"api/documents/group?filter={searchString}");
-            folders = await httpClient.GetFromJsonAsync<List<Folder>>("api/documents/tree/group");
+            folders = await httpClient.GetFromJsonAsync<List<Folder>>($"api/documents/tree/group?filter={searchString}");
             isDeleting = false;
         }
     }

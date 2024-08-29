@@ -1,19 +1,21 @@
-﻿
+﻿@using System.ComponentModel.DataAnnotations
+
 @if (docPage != null)
 {
+    
     <MudButton StartIcon="@Icons.Material.Filled.Info" Color="Color.Inherit" OnClick="@((e) => DrawerToggle())">Информация</MudButton>
-    <MudPaper Style="overflow:hidden; position:relative;">
+    <div Style="overflow:hidden; position:relative; border:none;">
         <MudDrawerContainer>
-            <MudDrawer @bind-Open="_open" Elevation="2" Variant="@DrawerVariant.Persistent" Class="pa-2">
-                <MudCard Class="mud-height-full">
+            <MudDrawer @bind-Open="_open" Elevation="0" Variant="@DrawerVariant.Persistent" Class="pa-2" Style="border:none;">
+                <MudCard Class="mud-height-full" Style="border:none;">
                     <MudCardContent>
-                        <MudForm ReadOnly="docPage.ReadOnlyForm">
-                            <MudTextField @bind-Value="@docPage.NameDoc" T="string" Label="Заголовок" />
+                        <MudForm @ref="form" ReadOnly="docPage.ReadOnlyForm">
+                            <MudTextField @bind-Value="@docPage.NameDoc" ErrorText="Укажите название" Required="true" T="string" Label="Заголовок" />
                             <MudTextField @bind-Value="@docPage.AuthorDoc" ReadOnly="true" T="string" Label="Автор" />
                             <MudDatePicker @bind-Date="@docPage.CreatedDateDoc" ReadOnly="true" Label="Дата создания" />
-                            <MudDatePicker @bind-Date="@docPage.ExpireDateDoc" IsDateDisabledFunc="@((DateTime dt)=>(dt < dateMinExpire))" Label="Действителен до" />
-                            <MudTextField @bind-Value="@docPage.PathDoc" T="string" Label="Путь" />
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" @onclick="OnSaveClick">Сохранить</MudButton>
+                            <MudDatePicker @bind-Date="@docPage.ExpireDateDoc" ErrorText="Укажите срок действия" Required="true" IsDateDisabledFunc="@((DateTime dt)=>(dt < dateMinExpire))" Label="Действителен до" />
+                            <MudTextField @bind-Value="@docPage.PathDoc" T="string" ErrorText="Укажите \\root" Required="true" Label="Путь" />
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" @onclick="ValidateForm">Сохранить</MudButton>
                         </MudForm>
                     </MudCardContent>
                 </MudCard>
@@ -24,22 +26,60 @@
                               OnAdornmentClick="@(() => multilineReference.SelectAsync())" />
             </div>
         </MudDrawerContainer>
-    </MudPaper>
+    </div>
+    @if (!string.IsNullOrEmpty(DateError))
+    {
+        <MudAlert Severity="Severity.Error">@DateError</MudAlert>
+    }
+    @if (!string.IsNullOrEmpty(PathError))
+    {
+        <MudAlert Severity="Severity.Error">@PathError</MudAlert>
+    }
 }
-
-
 
 
 @code {
 
     [Parameter]
     public EventCallback OnSaveClick { get; set; }
+
     [Parameter]
     public DocPageParameter? docPage { get; set; }
 
+    private MudForm form;
     private bool _open = true;
     private DateTime dateMinExpire = DateTime.Today.AddDays(1);
     private MudTextField<string>? multilineReference;
+    bool formSubmitted = false;
+    private string PathError;
+    private string DateError;
+
+
+
+    public async Task ValidateForm()
+    {
+        formSubmitted = false; // Сброс состояния перед проверкой
+
+        if (!docPage.ExpireDateDoc.HasValue)
+        {
+            DateError = "Укажите срок действия документа";
+        }
+        if (!docPage.PathDoc.StartsWith("root\\"))
+        {
+            PathError = "Путь должен начинаться с 'root'";
+        }
+        if (string.IsNullOrWhiteSpace(docPage.NameDoc) ||
+            (!docPage.ExpireDateDoc.HasValue) ||
+            string.IsNullOrWhiteSpace(docPage.PathDoc) || !docPage.PathDoc.StartsWith("root\\"))
+        {
+            // Если есть несоответствия, MudTextField автоматически отобразит ошибки
+            return;
+        }
+
+        // Если валидация прошла
+        formSubmitted = true;
+        await OnSaveClick.InvokeAsync();
+    }
 
     private void DrawerToggle()
     {

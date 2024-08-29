@@ -2,6 +2,7 @@
 using DocumentPlus.Data.Models;
 using DocumentPlus.Shared.Dto.Docs;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using System.IdentityModel.Tokens.Jwt;
 
@@ -17,6 +18,16 @@ public class DocumentService
         this.DbContext = DbContext;
     }
 
+    public async Task<int> GetUserId(HttpContext httpContext)
+    {
+        string? token = await httpContext.GetTokenAsync("access_token");
+        JwtSecurityToken cler = new JwtSecurityTokenHandler().ReadJwtToken(token);
+        IEnumerable<System.Security.Claims.Claim> claims = cler.Claims;
+        string UserId = claims.FirstOrDefault(c => c.Type == "UserId").Value;
+
+        return Convert.ToInt32(UserId);
+    }
+
     public async Task<int> Create(DocInfo documentInfo, HttpContext httpContext)
     {
         if (documentInfo is null)
@@ -24,22 +35,11 @@ public class DocumentService
             return -1;
         }
 
-        // Получаем Id пользователя
-        string? token = await httpContext.GetTokenAsync("access_token");
-        JwtSecurityToken cler = new JwtSecurityTokenHandler().ReadJwtToken(token);
-        IEnumerable<System.Security.Claims.Claim> claims = cler.Claims;
-        string UserId = claims.FirstOrDefault(c => c.Type == "UserId").Value;
-
-        if (UserId == null)
-        {
-            return -2;
-        }
-
-        int userId = Convert.ToInt32(UserId);
+        int userId = await GetUserId(httpContext);
         User user = await DbContext.Users.FirstOrDefaultAsync(u => u.Id == userId)
             ?? throw new Exception();
 
-        Document document = new Document()
+        Document document = new()
         {
             Name = documentInfo.Name,
             Path = documentInfo.Path,
@@ -49,7 +49,7 @@ public class DocumentService
             User = user,
         };
 
-        DocumentAccess access = new DocumentAccess()
+        DocumentAccess access = new()
         {
             Access_level = 0,
             Document = document,
@@ -62,13 +62,13 @@ public class DocumentService
         return 0;
     }
 
-    // Данил, тут пока возвращаются все доки, доделай чтобы было по ID
     public async Task<List<DocInfoGet>> Get(string search)
     {
         if (string.IsNullOrWhiteSpace(search))
         {
             return await DbContext.Documents
             .AsNoTracking()
+            .OrderBy(d => d.Id)
             .Select(d => new DocInfoGet()
             {
                 Id = d.Id,
@@ -105,13 +105,7 @@ public class DocumentService
 
     public async Task<List<DocInfoGet>> GetByUser(HttpContext httpContext)
     {
-        // Получаем Id пользователя
-        string? token = await httpContext.GetTokenAsync("access_token");
-        JwtSecurityToken cler = new JwtSecurityTokenHandler().ReadJwtToken(token);
-        IEnumerable<System.Security.Claims.Claim> claims = cler.Claims;
-        string UserId = claims.FirstOrDefault(c => c.Type == "UserId").Value;
-
-        int userId = Convert.ToInt32(UserId);
+        int userId = await GetUserId(httpContext);
 
         return await DbContext.DocumentAccesses
             .AsNoTracking()
@@ -138,12 +132,7 @@ public class DocumentService
         }
         string filter = search.ToLower();
 
-        string? token = await httpContext.GetTokenAsync("access_token");
-        JwtSecurityToken cler = new JwtSecurityTokenHandler().ReadJwtToken(token);
-        IEnumerable<System.Security.Claims.Claim> claims = cler.Claims;
-        string UserId = claims.FirstOrDefault(c => c.Type == "UserId").Value;
-
-        int userId = Convert.ToInt32(UserId);
+        int userId = await GetUserId(httpContext);
 
         List<int> groups = await DbContext.UserGroups
         .AsNoTracking()
@@ -177,7 +166,7 @@ public class DocumentService
         var allDocuments = authorDocuments.Concat(groupDocuments);
 
         // Создаем словарь для хранения максимального уровня доступа для каждого документа
-        Dictionary<int, (DocInfoGet docs, int MinAccessLevel)> documentAccessLevels = new Dictionary<int, (DocInfoGet docs, int MinAccessLevel)>();
+        Dictionary<int, (DocInfoGet docs, int MinAccessLevel)> documentAccessLevels = new();
 
         foreach (var entry in allDocuments)
         {
@@ -229,20 +218,13 @@ public class DocumentService
 
     public async Task<List<DocInfoGet>> GetByGroup(HttpContext httpContext)
     {
-        string? token = await httpContext.GetTokenAsync("access_token");
-        JwtSecurityToken cler = new JwtSecurityTokenHandler().ReadJwtToken(token);
-        IEnumerable<System.Security.Claims.Claim> claims = cler.Claims;
-        string UserId = claims.FirstOrDefault(c => c.Type == "UserId").Value;
-
-        int userId = Convert.ToInt32(UserId);
+        int userId = await GetUserId(httpContext);
 
         List<int> groups = await DbContext.UserGroups
         .AsNoTracking()
         .Where(g => g.User.Id == userId)
         .Select(g => g.Group.Id)
         .ToListAsync();
-
-
 
         // Получаем документы, доступные автору через права автора
         var authorDocuments = await DbContext.DocumentAccesses
@@ -259,12 +241,11 @@ public class DocumentService
             .Select(r => new { r.Document, r.Document.User, r.Access_level, r.Group })
             .ToListAsync();
 
-
         // Объединяем все документы
         var allDocuments = authorDocuments.Concat(groupDocuments);
 
         // Создаем словарь для хранения максимального уровня доступа для каждого документа
-        Dictionary<int, (DocInfoGet docs, int MinAccessLevel)> documentAccessLevels = new Dictionary<int, (DocInfoGet docs, int MinAccessLevel)>();
+        Dictionary<int, (DocInfoGet docs, int MinAccessLevel)> documentAccessLevels = new();
 
         foreach (var entry in allDocuments)
         {
@@ -328,24 +309,14 @@ public class DocumentService
                 Path = d.Path,
                 AuthorName = d.User.Name,
                 AuthorSurname = d.User.Surname,
+                AccessLevel = 0,
             }).FirstOrDefaultAsync(d => d.Id == id);
     }
 
     //Получение одного документа с правами автора
     public async Task<DocInfoGetId?> GetByIdAndUser(int id, HttpContext httpContext)
     {
-        // Получаем Id пользователя
-        string? token = await httpContext.GetTokenAsync("access_token");
-        JwtSecurityToken cler = new JwtSecurityTokenHandler().ReadJwtToken(token);
-        IEnumerable<System.Security.Claims.Claim> claims = cler.Claims;
-        string UserId = claims.FirstOrDefault(c => c.Type == "UserId").Value;
-
-        if (UserId == null)
-        {
-            return null;
-        }
-
-        int userId = Convert.ToInt32(UserId);
+        int userId = await GetUserId(httpContext);
 
         return await DbContext.DocumentAccesses
             .Where(da => da.User.Id == userId)
@@ -362,16 +333,38 @@ public class DocumentService
                 AuthorSurname = da.User.Surname,
             }).FirstOrDefaultAsync(d => d.Id == id);
     }
+    public async Task<DocInfoGetId?> GetByIdAndUserGroup(int id, HttpContext httpContext)
+    {
+        int userId = await GetUserId(httpContext);
+
+        var UserDoc = await DbContext.DocumentAccesses
+            .Where(da => da.User.Id == userId)
+            .Include(da => da.Document) // Забираем связанные документы
+            .Select(da => new DocInfoGetId()
+            {
+                Id = da.Document.Id,
+                Name = da.Document.Name,
+                Description = da.Document.Desc,
+                CreatedDate = da.Document.Created,
+                ExpireDate = da.Document.ExpireDate,
+                Path = da.Document.Path,
+                AuthorName = da.User.Name,
+                AuthorSurname = da.User.Surname,
+                AccessLevel = da.Access_level,
+            }).FirstOrDefaultAsync(d => d.Id == id);
+
+        if (UserDoc != null) 
+        { 
+            return UserDoc;
+        }
+
+        return await GetByIdAndGroup(id, httpContext);
+    }
 
     //Получение одного документа с правами групп
     public async Task<DocInfoGetId?> GetByIdAndGroup(int id, HttpContext httpContext)
     {
-        string? token = await httpContext.GetTokenAsync("access_token");
-        JwtSecurityToken cler = new JwtSecurityTokenHandler().ReadJwtToken(token);
-        IEnumerable<System.Security.Claims.Claim> claims = cler.Claims;
-        string UserId = claims.FirstOrDefault(c => c.Type == "UserId").Value;
-
-        int userId = Convert.ToInt32(UserId);
+        int userId = await GetUserId(httpContext);
 
         List<int> groups = await DbContext.UserGroups
             .AsNoTracking()
@@ -443,7 +436,7 @@ public class DocumentService
 
     public List<Folder> ParseFolders(List<DocInfoGet> documents)
     {
-        Dictionary<string, Folder> folderDictionary = new Dictionary<string, Folder>();
+        Dictionary<string, Folder> folderDictionary = new();
 
         // Заполняем словарь папками и документами
         foreach (DocInfoGet document in documents)

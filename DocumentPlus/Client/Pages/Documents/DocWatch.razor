@@ -16,9 +16,9 @@
 else if (document != null)
 {
     <MudButton StartIcon="@Icons.Material.Filled.Info" Color="Color.Inherit" OnClick="@((e) => DrawerToggle())">Информация</MudButton>
-    <MudPaper Style="overflow:hidden; position:relative;">
+    <div Style="overflow:hidden; position:relative;">
         <MudDrawerContainer>
-            <MudDrawer @bind-Open="_open" Elevation="2" Variant="@DrawerVariant.Persistent" Class="pa-2">
+            <MudDrawer @bind-Open="_open" Elevation="0" Variant="@DrawerVariant.Persistent" Class="pa-2">
                 <MudCard Class="mud-height-full">
                     <MudCardContent>
                         <MudForm ReadOnly="ReadOnly">
@@ -38,7 +38,7 @@ else if (document != null)
                               OnAdornmentClick="@(() => multilineReference.SelectAsync())" />
             </div>
         </MudDrawerContainer>
-    </MudPaper>
+    </div>
 }
 
 else
@@ -73,7 +73,12 @@ else
             }
             else
             {
-                document = await httpClient.GetFromJsonAsync<DocInfoGetId>($"api/user/documents/{id}");
+                document = await httpClient.GetFromJsonAsync<DocInfoGetId>($"/api/user/group/documents/{id}");
+
+                if (document.ExpireDate.Subtract(DateTime.Now).TotalDays < 0)
+                {
+                    NavManager.NavigateTo("/NotFound");
+                }
             }
 
             DocAuthor = document.AuthorName + " " + document.AuthorSurname;

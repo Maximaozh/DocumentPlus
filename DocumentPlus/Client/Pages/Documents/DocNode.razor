@@ -12,7 +12,15 @@
         {
             @foreach (var doc in folder.Documents)
             {
-                <MudTreeViewItem T="string" Text="@doc.Name" @onclick="() => RedirectToViewDoc(doc.Id) " Icon="@Icons.Material.Filled.InsertDriveFile" />
+                @if (doc.ExpireDate.Subtract(DateTime.Now).TotalDays < 0 && doc.AccessLevel > 0)
+                {
+                    <MudTreeViewItem Disabled="true" T="string" Text="@doc.Name" Icon="@Icons.Material.Filled.InsertDriveFile" />
+                }
+                else
+                {
+                    <MudTreeViewItem T="string" Text="@doc.Name"
+                     @onclick="() => RedirectToViewDoc(doc.Id) " Icon="@Icons.Material.Filled.InsertDriveFile" />
+                }
             }
         }
     </MudTreeViewItem>

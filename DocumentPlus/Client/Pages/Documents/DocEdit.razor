@@ -17,6 +17,7 @@
 
 else if (document != null)
 {
+    
     <DocForm docPage="docParam" OnSaveClick="UpdateDocument"/>
 }
 
@@ -38,6 +39,7 @@ else
         try
         {
             Role = await localStorage.GetValueAsync<string>("UserInfo:Role"); var httpClient = httpFactory.CreateClient("Aozh8");
+            bool ReadOnly = false;
 
             if (Role == "Администратор")
             {
@@ -45,9 +47,22 @@ else
             }
             else
             {
-                document = await httpClient.GetFromJsonAsync<DocInfoGetId>($"api/user/documents/{id}");
-            }
+                document = await httpClient.GetFromJsonAsync<DocInfoGetId>($"/api/user/group/documents/{id}");
 
+                if (document.AccessLevel > 1 || document.ExpireDate.Subtract(DateTime.Now).TotalDays < 0)
+                {
+                    NavManager.NavigateTo("/NotFound");
+                }
+                else if (document.AccessLevel == 1)
+                {
+                    ReadOnly = true;
+                }
+                else
+                {
+                    ReadOnly = false;
+                }
+            }
+           
             docParam = new DocPageParameter()
                 {
                     NameDoc = document.Name,
@@ -57,7 +72,7 @@ else
                     ExpireDateDoc = document.ExpireDate,
                     PathDoc = document.Path,
                     ReadOnlyText = false,
-                    ReadOnlyForm = false,
+                    ReadOnlyForm = ReadOnly,
                 };
 
             isLoading = false;
