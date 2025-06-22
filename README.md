@@ -1,4 +1,4 @@
-# Document Manager - система управления документами с RBAC
+# Document Manager - система управления документами
 
 ## Технологический стек
 - **Backend**: ASP.NET Core 6+ (Minimal API)
